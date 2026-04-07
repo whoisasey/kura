@@ -255,7 +255,7 @@ const DashboardPage = () => {
               <Typography variant="caption" color="text.secondary">
                 {stat.label}
               </Typography>
-              <Typography variant="body1" fontWeight={500}>
+              <Typography variant="body1" fontWeight={500} color="text.primary">
                 {stat.value}
               </Typography>
             </Box>
