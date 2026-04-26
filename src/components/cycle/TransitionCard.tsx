@@ -23,7 +23,7 @@ const TransitionCard = ({ insight, loading }: TransitionCardProps) => {
 
         {!loading && !insight && (
           <Typography variant="body2" color="text.disabled">
-            Log your first period to see what's coming up.
+            Log your first period to see what&apos;s coming up.
           </Typography>
         )}
 

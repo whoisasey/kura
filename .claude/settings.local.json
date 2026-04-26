@@ -9,7 +9,9 @@
       "Read(//tmp/**)",
       "Bash(curl -s http://localhost:3000/api/cycle-insight)",
       "Bash(supabase --version)",
-      "Bash(supabase db:*)"
+      "Bash(supabase db:*)",
+      "Bash(npm install:*)",
+      "Bash(npx husky:*)"
     ]
   }
 }
