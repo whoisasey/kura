@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Cycle, CycleInsight } from '@/types/index'
+import type { Cycle } from '@/types/index'
 
 export const getLatestCycle = async (
   supabase: SupabaseClient,
