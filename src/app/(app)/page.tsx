@@ -1,20 +1,20 @@
 "use client";
 
-import { Alert, Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
+import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useEffect, useState } from "react";
 
-import AirRoundedIcon from "@mui/icons-material/AirRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
+import EnvBanner from "@/components/env/EnvBanner";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import type { EnvAlerts, WeatherReading } from "@/types/index";
 
 interface Prediction {
   phase?: string;
   hormone_note?: string;
-  pressure_alert?: boolean;
-  aqi_alert?: boolean;
   suggested_meals?: string[];
   suggested_activities?: string[];
   general_heads_up?: string;
@@ -60,12 +60,26 @@ const formatDate = () =>
     day: "numeric",
   });
 
+const deriveEnvAlerts = (
+  reading: WeatherReading | null
+): EnvAlerts => ({
+  pressureDelta: reading?.pressure_delta_6h ?? null,
+  pressureDropForecast: reading?.pressure_drop_forecast ?? false,
+  aqiAlert: typeof reading?.aqi === "number" && reading.aqi > 50,
+  aqi: reading?.aqi ?? null,
+  uvHigh: typeof reading?.uv_index === "number" && reading.uv_index >= 6,
+  uvIndex: reading?.uv_index ?? null,
+  temperatureC: reading?.temperature_c ?? null,
+  lastUpdated: reading?.recorded_at ?? null,
+});
+
 const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [cycleDay, setCycleDay] = useState<number | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [todayEntry, setTodayEntry] = useState<TodayEntry | null>(null);
+  const [weatherReading, setWeatherReading] = useState<WeatherReading | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -80,20 +94,54 @@ const DashboardPage = () => {
         return;
       }
 
-      const [pred, cyc, entry] = await Promise.all([
+      const [pred, cyc, entry, weather] = await Promise.all([
         getTodayPrediction(user.id),
         getLatestCycle(user.id),
         getTodayEntry(user.id),
+        getLatestWeatherReading(supabase, user.id),
       ]);
 
       setPrediction(pred);
       setCycle(cyc);
       setTodayEntry(entry);
+      if (weather) setWeatherReading(weather);
+
       if (cyc?.period_start) {
-        const day = Math.floor((Date.now() - new Date(cyc.period_start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const day =
+          Math.floor((Date.now() - new Date(cyc.period_start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setCycleDay(day);
       }
+
       setLoading(false);
+
+      // Request geolocation and refresh weather in background
+      if (typeof window !== "undefined" && "geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const res = await fetch("/api/weather", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                }),
+              });
+              if (res.ok) {
+                const fresh = (await res.json()) as WeatherReading & { skipped?: boolean; error?: string };
+                if (!fresh.skipped && !fresh.error) {
+                  setWeatherReading(fresh);
+                }
+              }
+            } catch {
+              // weather fetch failure is non-fatal
+            }
+          },
+          () => {
+            // geolocation denied — show whatever we already have
+          }
+        );
+      }
     };
 
     load();
@@ -111,6 +159,7 @@ const DashboardPage = () => {
   }
 
   const phase = prediction?.phase ?? cycle?.phase ?? null;
+  const envAlerts = deriveEnvAlerts(weatherReading);
 
   return (
     <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -123,6 +172,9 @@ const DashboardPage = () => {
           {formatDate()}
         </Typography>
       </Box>
+
+      {/* Env banner — above phase card */}
+      <EnvBanner alerts={envAlerts} />
 
       {/* Phase card */}
       <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
@@ -169,19 +221,6 @@ const DashboardPage = () => {
         </CardContent>
       </Card>
 
-      {/* Alerts */}
-      {prediction?.pressure_alert && (
-        <Alert severity="warning" icon={<AirRoundedIcon />} sx={{ borderRadius: 2 }}>
-          Pressure dropping — headache risk today. Stay hydrated.
-        </Alert>
-      )}
-
-      {prediction?.aqi_alert && (
-        <Alert severity="warning" sx={{ borderRadius: 2 }}>
-          Air quality is poor today. Consider indoor workouts.
-        </Alert>
-      )}
-
       {/* Recommendations */}
       {prediction && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -224,7 +263,7 @@ const DashboardPage = () => {
             <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
               <CardContent>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  {` Today's note`}
+                  {`Today's note`}
                 </Typography>
                 <Typography variant="body2">{prediction.general_heads_up}</Typography>
               </CardContent>
