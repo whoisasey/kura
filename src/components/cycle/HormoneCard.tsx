@@ -14,7 +14,7 @@ const HormoneCard = ({ insight, loading }: HormoneCardProps) => {
     <Card elevation={0} sx={{ border: '0.5px solid', borderColor: 'divider' }}>
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         <Typography variant="body2" color="text.secondary" fontWeight={500}>
-          What's happening today
+          What&apos;s happening today
         </Typography>
 
         {loading && (
