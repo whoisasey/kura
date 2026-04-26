@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Card, CardContent, Chip, CircularProgress, IconButton, Snackbar, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, CircularProgress, IconButton, Snackbar, TextField, Typography } from "@mui/material";
 import { deleteCycle, getCycles, logCycle } from "@/lib/supabase/queries/cycle";
 import { useEffect, useState } from "react";
 
@@ -48,6 +48,7 @@ const CyclePage = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(today());
   const router = useRouter();
 
   useEffect(() => {
@@ -70,12 +71,12 @@ const CyclePage = () => {
     load();
   }, [router]);
 
-  const handleLogToday = async () => {
-    if (!userId) return;
+  const handleLog = async () => {
+    if (!userId || !selectedDate) return;
     setSaving(true);
-    const result = await logCycle(userId, today());
+    const result = await logCycle(userId, selectedDate);
     if (result) {
-      setCycles((prev) => [result, ...prev]);
+      setCycles((prev) => [result, ...prev].sort((a, b) => (a.period_start < b.period_start ? 1 : -1)));
       setSnackbar("Period start logged");
     }
     setSaving(false);
@@ -97,7 +98,7 @@ const CyclePage = () => {
   const latest = cycles[0] ?? null;
   const cycleDay = latest ? getCycleDay(latest.period_start) : null;
   const currentPhase = cycleDay !== null && cycleDay > 0 ? getPhaseFromDay(cycleDay) : null;
-  const alreadyLoggedToday = latest?.period_start === today();
+  const alreadyLogged = cycles.some((c) => c.period_start === selectedDate);
 
   return (
     <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -142,16 +143,29 @@ const CyclePage = () => {
         </CardContent>
       </Card>
 
-      {/* Log button */}
-      <Button
-        variant="contained"
-        size="large"
-        fullWidth
-        onClick={handleLogToday}
-        disabled={saving || alreadyLoggedToday}
-      >
-        {alreadyLoggedToday ? "Period already logged today" : "Log period start today"}
-      </Button>
+      {/* Log form */}
+      <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+        <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Log period start
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            inputProps={{ max: today() }}
+            fullWidth
+          />
+          <Button
+            variant="contained"
+            onClick={handleLog}
+            disabled={saving || alreadyLogged || !selectedDate}
+          >
+            {alreadyLogged ? "Already logged for this date" : "Save"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* History */}
       {cycles.length > 0 && (
