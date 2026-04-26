@@ -6,6 +6,7 @@ import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
 import { createClient } from "@/lib/supabase/client";
@@ -18,6 +19,7 @@ interface Prediction {
   suggested_meals?: string[];
   suggested_activities?: string[];
   general_heads_up?: string;
+  call_type?: string;
 }
 
 interface Cycle {
@@ -107,8 +109,9 @@ const DashboardPage = () => {
       if (weather) setWeatherReading(weather);
 
       if (cyc?.period_start) {
-        const day =
-          Math.floor((Date.now() - new Date(cyc.period_start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const [y, m, d] = cyc.period_start.split('-').map(Number);
+        const start = new Date(y, m - 1, d);
+        const day = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setCycleDay(day);
       }
 
@@ -161,6 +164,12 @@ const DashboardPage = () => {
   const phase = prediction?.phase ?? cycle?.phase ?? null;
   const envAlerts = deriveEnvAlerts(weatherReading);
 
+  const cycleInsight = (() => {
+    if (prediction?.call_type !== 'cycle_insight' || !prediction.hormone_note) return null;
+    try { return JSON.parse(prediction.hormone_note) as { hormone_note: { headline: string }; exercise: { recommended_type: string; duration_minutes: number } }; }
+    catch { return null; }
+  })();
+
   return (
     <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Header */}
@@ -197,7 +206,20 @@ const DashboardPage = () => {
                   </Typography>
                 )}
               </Box>
-              {prediction?.hormone_note && (
+              {cycleInsight && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {cycleInsight.hormone_note.headline}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+                    <Typography variant="caption" color="text.disabled">
+                      {cycleInsight.exercise.recommended_type} · {cycleInsight.exercise.duration_minutes} min
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              {!cycleInsight && prediction?.hormone_note && prediction?.call_type !== 'cycle_insight' && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {prediction.hormone_note}
                 </Typography>
