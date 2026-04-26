@@ -6,7 +6,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     <Box
       sx={{
         minHeight: "100vh",
-        pb: "80px",
+        pb: "calc(80px + env(safe-area-inset-bottom))",
       }}
     >
       {children}
