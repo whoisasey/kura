@@ -9,7 +9,7 @@ export const getTodayPrediction = async (userId: string) => {
     .select("*")
     .eq("user_id", userId)
     .eq("prediction_date", today)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data;
