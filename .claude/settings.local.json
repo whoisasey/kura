@@ -6,7 +6,10 @@
       "Bash(npm run:*)",
       "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
       "Bash(kill %1)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:3000/api/cycle-insight)",
+      "Bash(supabase --version)",
+      "Bash(supabase db:*)"
     ]
   }
 }
