@@ -16,7 +16,7 @@ export interface JournalEntry {
   id: string
   user_id: string
   entry_date: string
-  mood: number | null
+  mood: string | null
   energy_level: number | null
   sleep_hours: number | null
   stress_level: number | null
