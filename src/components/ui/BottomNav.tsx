@@ -3,16 +3,16 @@
 import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
+import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
 
 const tabs = [
   { label: "Home", icon: <HomeRoundedIcon />, path: "/" },
+  { label: "Cycle", icon: <FavoriteRoundedIcon />, path: "/cycle" },
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
-  { label: "Cycle", icon: <AutoAwesomeRoundedIcon />, path: "/cycle" },
   { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },
   { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
 ];
