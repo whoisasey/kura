@@ -48,11 +48,22 @@ const phaseColors: Record<string, string> = {
   luteal: "#6B8F71",
 };
 
-const getGreeting = () => {
+const getGreeting = (name: string | null) => {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning, Atina";
-  if (hour < 17) return "Good afternoon, Atina";
-  return "Good evening, Atina";
+  const suffix = name ? `, ${name}` : "";
+  if (hour < 12) return `Good morning${suffix}`;
+  if (hour < 17) return `Good afternoon${suffix}`;
+  return `Good evening${suffix}`;
+};
+
+const getDisplayName = (user: { user_metadata?: { display_name?: string }; email?: string } | null): string | null => {
+  if (!user) return null;
+  if (user.user_metadata?.display_name) return user.user_metadata.display_name;
+  if (user.email) {
+    const local = user.email.split("@")[0];
+    return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return null;
 };
 
 const formatDate = () =>
@@ -75,6 +86,7 @@ const deriveEnvAlerts = (reading: WeatherReading | null): EnvAlerts => ({
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [cycleDay, setCycleDay] = useState<number | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [cycle, setCycle] = useState<Cycle | null>(null);
@@ -93,6 +105,8 @@ const DashboardPage = () => {
         router.push("/login");
         return;
       }
+
+      setDisplayName(getDisplayName(user));
 
       const [pred, cyc, entry, weather] = await Promise.all([
         getTodayPrediction(user.id),
@@ -179,7 +193,7 @@ const DashboardPage = () => {
       {/* Header */}
       <Box>
         <Typography variant="h2" sx={{ fontSize: "1.5rem", fontWeight: 500 }}>
-          {getGreeting()}
+          {getGreeting(displayName)}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {formatDate()}
