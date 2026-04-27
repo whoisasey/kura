@@ -1,6 +1,8 @@
 import type { CyclePhase } from '@/lib/cycle/phaseCalculator'
 export type { CyclePhase }
 
+export type FlowIntensity = 'light' | 'medium' | 'heavy'
+
 export interface Cycle {
   id: string
   user_id: string
@@ -9,6 +11,7 @@ export interface Cycle {
   cycle_length: number | null
   phase: CyclePhase | null
   notes: string | null
+  flow_intensity: FlowIntensity | null
   created_at: string
 }
 
@@ -51,6 +54,14 @@ export interface CycleInsight {
     how_to_prepare: string[]
     what_to_look_forward_to: string
   }
+  symptom_forecast: {
+    upcoming: Array<{
+      symptom: string
+      likely_day: number
+      days_away: number
+      confidence: 'likely' | 'possible'
+    }>
+  } | null
 }
 
 export interface WeatherReading {

@@ -20,9 +20,24 @@ const phaseLabel: Record<CyclePhase, string> = {
 interface PhaseHeaderProps {
   insight: CycleInsight | null
   loading: boolean
+  predictedNextPeriod: string | null
 }
 
-const PhaseHeader = ({ insight, loading }: PhaseHeaderProps) => {
+const formatPredictedDate = (dateStr: string): string => {
+  const date = new Date(dateStr + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (days <= 0) return 'around now'
+  if (days === 1) return 'tomorrow'
+  if (days < 7) return `in ${days} days`
+  if (days < 14) return `in about a week`
+
+  return `~${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+}
+
+const PhaseHeader = ({ insight, loading, predictedNextPeriod }: PhaseHeaderProps) => {
   if (loading) {
     return (
       <Box sx={{ pt: 1 }}>
@@ -59,6 +74,11 @@ const PhaseHeader = ({ insight, loading }: PhaseHeaderProps) => {
         {insight.days_until_next_phase} {insight.days_until_next_phase === 1 ? 'day' : 'days'} until{' '}
         {phaseLabel[insight.next_phase].toLowerCase()}
       </Typography>
+      {predictedNextPeriod && (
+        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.25 }}>
+          Next period {formatPredictedDate(predictedNextPeriod)}
+        </Typography>
+      )}
     </Box>
   )
 }

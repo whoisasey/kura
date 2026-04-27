@@ -9,12 +9,14 @@ import {
   DialogTitle,
   Fab,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material'
 import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded'
 import { createClient } from '@/lib/supabase/client'
 import { insertCycle, updateCycleEnd } from '@/lib/supabase/queries/cycles'
-import type { Cycle } from '@/types/index'
+import type { Cycle, FlowIntensity } from '@/types/index'
 
 interface LogPeriodFabProps {
   activeCycle: Cycle | null
@@ -26,6 +28,7 @@ const todayStr = () => new Date().toISOString().split('T')[0]
 const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
   const [open, setOpen] = useState(false)
   const [date, setDate] = useState(todayStr())
+  const [flowIntensity, setFlowIntensity] = useState<FlowIntensity | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,6 +37,7 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
 
   const handleOpen = () => {
     setDate(todayStr())
+    setFlowIntensity(null)
     setError(null)
     setOpen(true)
   }
@@ -55,7 +59,11 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
         }
         await updateCycleEnd(supabase, activeCycle.id, date)
       } else {
-        await insertCycle(supabase, { user_id: user.id, period_start: date })
+        await insertCycle(supabase, {
+          user_id: user.id,
+          period_start: date,
+          ...(flowIntensity ? { flow_intensity: flowIntensity } : {}),
+        })
       }
 
       setOpen(false)
@@ -91,6 +99,24 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
             size="small"
             InputLabelProps={{ shrink: true }}
           />
+          {!isActive && (
+            <>
+              <Typography variant="caption" color="text.secondary">
+                Flow intensity (optional)
+              </Typography>
+              <ToggleButtonGroup
+                value={flowIntensity}
+                exclusive
+                onChange={(_, val) => setFlowIntensity(val as FlowIntensity | null)}
+                size="small"
+                fullWidth
+              >
+                <ToggleButton value="light">Light</ToggleButton>
+                <ToggleButton value="medium">Medium</ToggleButton>
+                <ToggleButton value="heavy">Heavy</ToggleButton>
+              </ToggleButtonGroup>
+            </>
+          )}
           {error && (
             <Typography variant="caption" color="error">
               {error}

@@ -27,8 +27,11 @@ export const GET = async (): Promise<Response> => {
 
   // 2. Cache miss — fetch data
   const today = new Date().toISOString().split('T')[0]
+  const ninetyDaysAgo = new Date()
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+  const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0]
 
-  const [latestCycle, cycles, journalRes] = await Promise.all([
+  const [latestCycle, cycles, journalRes, symptomRes] = await Promise.all([
     getLatestCycle(supabase, user.id),
     getLast6Cycles(supabase, user.id),
     supabase
@@ -38,6 +41,12 @@ export const GET = async (): Promise<Response> => {
       .gte('entry_date', (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0] })())
       .order('entry_date', { ascending: false })
       .limit(7),
+    supabase
+      .from('journal_entries')
+      .select('entry_date, symptoms(symptom, severity)')
+      .eq('user_id', user.id)
+      .gte('entry_date', ninetyDaysAgoStr)
+      .order('entry_date', { ascending: false }),
   ])
 
   // 3. No cycles logged yet
@@ -46,6 +55,10 @@ export const GET = async (): Promise<Response> => {
   }
 
   const journalEntries: JournalEntry[] = (journalRes.data ?? []) as JournalEntry[]
+  const journalWithSymptoms = (symptomRes.data ?? []) as Array<{
+    entry_date: string
+    symptoms: Array<{ symptom: string; severity: number }>
+  }>
   const cycleDay = computeCycleDay(latestCycle.period_start)
   const phase = computePhase(cycleDay)
   const daysLeft = daysUntilNextPhase(cycleDay)
@@ -57,6 +70,7 @@ export const GET = async (): Promise<Response> => {
     phase,
     cycles,
     journalEntries,
+    journalWithSymptoms,
   })
 
   let insight: CycleInsight
@@ -64,7 +78,7 @@ export const GET = async (): Promise<Response> => {
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 1536,
       system: CYCLE_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     })
