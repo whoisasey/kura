@@ -24,3 +24,27 @@ export const daysUntilNextPhase = (cycleDay: number): number => {
   // luteal ends at day 28 by default
   return 28 - cycleDay + 1
 }
+
+export const computeAvgCycleInterval = (periodStarts: string[]): number => {
+  if (periodStarts.length < 2) return 28
+  const sorted = [...periodStarts].sort((a, b) => (a > b ? -1 : 1))
+  const intervals: number[] = []
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const days = Math.round(
+      (new Date(sorted[i]).getTime() - new Date(sorted[i + 1]).getTime()) /
+        (1000 * 60 * 60 * 24)
+    )
+    if (days > 14 && days < 60) intervals.push(days)
+  }
+  if (intervals.length === 0) return 28
+  return Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
+}
+
+export const computePredictedNextPeriod = (periodStarts: string[]): string | null => {
+  if (periodStarts.length === 0) return null
+  const sorted = [...periodStarts].sort((a, b) => (a > b ? -1 : 1))
+  const interval = computeAvgCycleInterval(sorted)
+  const next = new Date(sorted[0])
+  next.setDate(next.getDate() + interval)
+  return next.toISOString().split('T')[0]
+}

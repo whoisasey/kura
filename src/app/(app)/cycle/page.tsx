@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Box, Stack } from '@mui/material'
+import KuraLogo from '@/components/ui/KuraLogo'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getLatestCycle, getAvgCycleLength } from '@/lib/supabase/queries/cycles'
+import { getLatestCycle, getLast6Cycles } from '@/lib/supabase/queries/cycles'
+import { computePredictedNextPeriod } from '@/lib/cycle/phaseCalculator'
 import PhaseHeader from '@/components/cycle/PhaseHeader'
 import CycleCalendar from '@/components/cycle/CycleCalendar'
 import HormoneCard from '@/components/cycle/HormoneCard'
 import ExerciseCard from '@/components/cycle/ExerciseCard'
 import TransitionCard from '@/components/cycle/TransitionCard'
+import SymptomForecastCard from '@/components/cycle/SymptomForecastCard'
 import LogPeriodFab from '@/components/cycle/LogPeriodFab'
 import type { Cycle, CycleInsight } from '@/types/index'
 
@@ -19,7 +22,8 @@ const CyclePage = () => {
   const [loading, setLoading] = useState(true)
   const [insight, setInsight] = useState<CycleInsight | null>(null)
   const [latestCycle, setLatestCycle] = useState<Cycle | null>(null)
-  const [avgCycleLength, setAvgCycleLength] = useState(28)
+  const [cycles, setCycles] = useState<Cycle[]>([])
+  const [predictedNextPeriod, setPredictedNextPeriod] = useState<string | null>(null)
   const [noData, setNoData] = useState(false)
 
   const handleRefresh = useCallback(() => setRefresh((n) => n + 1), [])
@@ -32,10 +36,10 @@ const CyclePage = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const [insightRes, cycle, avgLen] = await Promise.all([
+      const [insightRes, cycle, last6] = await Promise.all([
         fetch('/api/cycle-insight').then((r) => r.json()),
         getLatestCycle(supabase, user.id),
-        getAvgCycleLength(supabase, user.id),
+        getLast6Cycles(supabase, user.id),
       ])
 
       if (insightRes.noData) {
@@ -47,7 +51,10 @@ const CyclePage = () => {
       }
 
       setLatestCycle(cycle)
-      setAvgCycleLength(avgLen)
+      setCycles(last6)
+      setPredictedNextPeriod(
+        computePredictedNextPeriod(last6.map((c) => c.period_start))
+      )
       setLoading(false)
     }
 
@@ -55,13 +62,29 @@ const CyclePage = () => {
   }, [refresh, router])
 
   return (
-    <Box sx={{ px: 2, pb: 4 }}>
+    <Box sx={{ px: 2, pb: 4, position: 'relative' }}>
+      {loading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          <KuraLogo />
+        </Box>
+      )}
       <Stack spacing={2} sx={{ pt: 2 }}>
-        <PhaseHeader insight={insight} loading={loading} />
-        <CycleCalendar latestCycle={latestCycle} avgCycleLength={avgCycleLength} />
+        <PhaseHeader insight={insight} loading={loading} predictedNextPeriod={predictedNextPeriod} />
+        <CycleCalendar latestCycle={latestCycle} cycles={cycles} />
         {!noData && (
           <>
             <HormoneCard insight={insight} loading={loading} />
+            <SymptomForecastCard insight={insight} loading={loading} />
             <ExerciseCard insight={insight} loading={loading} />
             <TransitionCard insight={insight} loading={loading} />
           </>

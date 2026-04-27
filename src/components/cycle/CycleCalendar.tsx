@@ -1,7 +1,7 @@
 'use client'
 
 import { Box, Tooltip } from '@mui/material'
-import { computeCycleDay, computePhase } from '@/lib/cycle/phaseCalculator'
+import { computeCycleDay, computePhase, computeAvgCycleInterval } from '@/lib/cycle/phaseCalculator'
 import type { CyclePhase } from '@/lib/cycle/phaseCalculator'
 import type { Cycle } from '@/types/index'
 
@@ -14,12 +14,18 @@ const phaseFill: Record<CyclePhase, string> = {
 
 interface CycleCalendarProps {
   latestCycle: Cycle | null
-  avgCycleLength: number
+  cycles: Cycle[]
 }
 
-const CycleCalendar = ({ latestCycle, avgCycleLength }: CycleCalendarProps) => {
-  const totalDays = Math.max(avgCycleLength, 28)
+const CycleCalendar = ({ latestCycle, cycles }: CycleCalendarProps) => {
+  const periodStarts = cycles.map((c) => c.period_start)
+  const avgInterval = computeAvgCycleInterval(periodStarts)
+  const totalDays = Math.max(avgInterval, 28)
   const todayCycleDay = latestCycle ? computeCycleDay(latestCycle.period_start) : null
+
+  // Predicted period: starts at avgInterval days from period_start (cycle day = avgInterval)
+  // Show predicted menstrual dots for 5 days after totalDays
+  const predictedPeriodDays = Array.from({ length: 5 }, (_, i) => totalDays + 1 + i)
 
   return (
     <Box
@@ -37,7 +43,7 @@ const CycleCalendar = ({ latestCycle, avgCycleLength }: CycleCalendarProps) => {
     >
       {Array.from({ length: totalDays }, (_, i) => {
         const day = i + 1
-        const phase = computePhase(day, avgCycleLength)
+        const phase = computePhase(day, avgInterval)
         const fill = phaseFill[phase]
         const isToday = todayCycleDay !== null && day === todayCycleDay
         const isFuture = todayCycleDay !== null && day > todayCycleDay
@@ -65,6 +71,23 @@ const CycleCalendar = ({ latestCycle, avgCycleLength }: CycleCalendarProps) => {
           </Tooltip>
         )
       })}
+
+      {/* Predicted period dots */}
+      {todayCycleDay !== null && predictedPeriodDays.map((day) => (
+        <Tooltip key={`pred-${day}`} title={`Predicted period · day ${day - totalDays}`} placement="top">
+          <Box
+            sx={{
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              bgcolor: 'transparent',
+              border: `2px dashed ${phaseFill.menstrual}`,
+              opacity: 0.5,
+              flexShrink: 0,
+            }}
+          />
+        </Tooltip>
+      ))}
     </Box>
   )
 }
