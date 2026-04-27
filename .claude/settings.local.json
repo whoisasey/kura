@@ -11,7 +11,8 @@
       "Bash(supabase --version)",
       "Bash(supabase db:*)",
       "Bash(npm install:*)",
-      "Bash(npx husky:*)"
+      "Bash(npx husky:*)",
+      "Bash(xargs ls *)"
     ]
   }
 }
