@@ -33,11 +33,11 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
   const [error, setError] = useState<string | null>(null)
 
   const isActive = activeCycle !== null && activeCycle.period_end === null
-  const label = isActive ? 'Log period end' : 'Log period start'
+  const label = 'Log Period'
 
   const handleOpen = () => {
     setDate(todayStr())
-    setFlowIntensity(null)
+    setFlowIntensity(isActive ? (activeCycle?.flow_intensity ?? null) : null)
     setError(null)
     setOpen(true)
   }
@@ -58,6 +58,12 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
           return
         }
         await updateCycleEnd(supabase, activeCycle.id, date)
+        if (flowIntensity) {
+          await supabase
+            .from('cycles')
+            .update({ flow_intensity: flowIntensity })
+            .eq('id', activeCycle.id)
+        }
       } else {
         await insertCycle(supabase, {
           user_id: user.id,
@@ -99,24 +105,20 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
             size="small"
             InputLabelProps={{ shrink: true }}
           />
-          {!isActive && (
-            <>
-              <Typography variant="caption" color="text.secondary">
-                Flow intensity (optional)
-              </Typography>
-              <ToggleButtonGroup
-                value={flowIntensity}
-                exclusive
-                onChange={(_, val) => setFlowIntensity(val as FlowIntensity | null)}
-                size="small"
-                fullWidth
-              >
-                <ToggleButton value="light">Light</ToggleButton>
-                <ToggleButton value="medium">Medium</ToggleButton>
-                <ToggleButton value="heavy">Heavy</ToggleButton>
-              </ToggleButtonGroup>
-            </>
-          )}
+          <Typography variant="caption" color="text.secondary">
+            Flow intensity (optional)
+          </Typography>
+          <ToggleButtonGroup
+            value={flowIntensity}
+            exclusive
+            onChange={(_, val) => setFlowIntensity(val as FlowIntensity | null)}
+            size="small"
+            fullWidth
+          >
+            <ToggleButton value="light">Light</ToggleButton>
+            <ToggleButton value="medium">Medium</ToggleButton>
+            <ToggleButton value="heavy">Heavy</ToggleButton>
+          </ToggleButtonGroup>
           {error && (
             <Typography variant="caption" color="error">
               {error}

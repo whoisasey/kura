@@ -42,7 +42,7 @@ const moodEmoji: Record<string, string> = {
 };
 const mealTypes = ["breakfast", "lunch", "dinner", "snack"] as const;
 const activityTypes = ["exercise", "rest", "social", "creative", "work", "other"] as const;
-const symptomList = ["cramps", "bloating", "headache", "acne", "fatigue", "breast_tenderness", "other"] as const;
+const symptomList = ["cramps", "bloating", "headache", "acne", "fatigue", "breast_tenderness", "joint_pain", "other"] as const;
 
 interface JournalEntry {
   id: string;
