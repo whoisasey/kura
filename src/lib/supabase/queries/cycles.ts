@@ -48,7 +48,7 @@ export const getAvgCycleLength = async (
 
 export const insertCycle = async (
   supabase: SupabaseClient,
-  data: { user_id: string; period_start: string; period_end?: string; phase?: string; flow_intensity?: string }
+  data: { user_id: string; period_start: string; period_end?: string; phase?: string; flow_intensity?: string; notes?: string }
 ): Promise<Cycle> => {
   const { data: row, error } = await supabase
     .from('cycles')

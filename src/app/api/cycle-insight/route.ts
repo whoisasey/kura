@@ -19,9 +19,24 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  // 1. Cache check
+  // 1. Cache check — recompute positional fields so day/phase never drift
   const cached = await getTodayCycleInsight(supabase, user.id)
   if (cached) {
+    const cachedCycle = await getLatestCycle(supabase, user.id)
+    if (cachedCycle) {
+      const freshDay = computeCycleDay(cachedCycle.period_start)
+      const freshDaysLeft = daysUntilNextPhase(freshDay)
+      return Response.json({
+        ...cached,
+        cycle_day: freshDay,
+        phase: computePhase(freshDay),
+        days_until_next_phase: freshDaysLeft,
+        transition_briefing: {
+          ...cached.transition_briefing,
+          arriving_in_days: freshDaysLeft,
+        },
+      })
+    }
     return Response.json(cached)
   }
 
@@ -93,6 +108,10 @@ export const GET = async (): Promise<Response> => {
       cycle_day: cycleDay,
       phase,
       days_until_next_phase: daysLeft,
+      transition_briefing: {
+        ...parsed.transition_briefing,
+        arriving_in_days: daysLeft,
+      },
     }
   } catch (err) {
     console.error('[cycle-insight] Claude call failed:', err)

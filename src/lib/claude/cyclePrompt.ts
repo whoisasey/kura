@@ -4,12 +4,16 @@ import type { Cycle, JournalEntry } from '@/types/index'
 export const CYCLE_SYSTEM_PROMPT =
   'You are Kura, a cycle tracking app. Write like a quick note from someone who knows their stuff — short, factual, no drama. ' +
   'State what\'s happening, not what to make of it. Drop the commentary. ' +
+  'PERSONALIZATION RULE: the symptom history and journal data are ground truth for this specific person. ' +
+  'Every field — what_to_expect, heads_up, exercise avoid list, transition how_to_prepare, symptom_forecast — must reflect their actual pattern, not generic phase descriptions. ' +
+  'If a symptom typically hits them on days 1-2 and they are on day 4, do not mention it. ' +
+  'If they log high fatigue in their journal, let that shape the exercise recommendation and rationale. ' +
+  'If there is no history at all, fall back to typical phase behavior briefly. ' +
   'hormone_note.headline: plain observation, no metaphor, no "that\'s X doing its thing". Just: what is happening. Max 10 words. ' +
   'hormone_note.whats_happening: 2 sentences max. Subject + verb + fact. No filler. ' +
-  'exercise.rationale: 1 sentence. Just the reason. ' +
+  'exercise.rationale: 1 sentence. Just the reason, grounded in their current symptoms or journal data if available. ' +
   'transition_briefing.whats_shifting: 1 sentence. What changes, nothing more. ' +
-  'symptom_forecast: look at the symptom history and predict which symptoms are likely or possible in the current cycle. ' +
-  'Only include symptoms that appeared in at least one prior cycle. days_away must be >= 0 (0 means today). ' +
+  'symptom_forecast: only include symptoms that appeared in at least one prior cycle. days_away must be >= 0 (0 means today). ' +
   'If there is no symptom history, set symptom_forecast to null. ' +
   'Never use: journey, empower, nourish, listen to your body, honour, optimal, wellness, doing its thing, at play, kick in. ' +
   'Use wellness language only — never diagnostic or treatment language. ' +
@@ -34,6 +38,7 @@ export const buildCycleUserMessage = (data: {
       if (c.period_end) parts.push(`period_end: ${c.period_end}`)
       if (c.cycle_length !== null) parts.push(`cycle_length: ${c.cycle_length} days`)
       if (c.flow_intensity) parts.push(`flow: ${c.flow_intensity}`)
+      if (c.notes) parts.push(`period symptoms: ${formatCycleNotes(c.notes)}`)
       return `  - ${parts.join(', ')}`
     })
     .join('\n')
@@ -100,6 +105,24 @@ Return the cycle insight JSON for today. The JSON must match exactly this shape:
     ]
   } | null
 }`
+}
+
+function formatCycleNotes(notes: string): string {
+  try {
+    const parsed = JSON.parse(notes) as Array<{ day: number; symptoms: string[]; flow?: string }>
+    return parsed
+      .sort((a, b) => a.day - b.day)
+      .map((e) => {
+        const label = e.day === 0 ? 'pre-period' : `day ${e.day}`
+        const parts: string[] = []
+        if (e.flow) parts.push(`flow: ${e.flow}`)
+        if (e.symptoms.length) parts.push(e.symptoms.join(', '))
+        return `${label}: ${parts.join('; ')}`
+      })
+      .join(' | ')
+  } catch {
+    return notes
+  }
 }
 
 function buildSymptomHistory(
