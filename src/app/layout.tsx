@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { Roboto } from "next/font/google";
-import EmotionRegistry from "@/components/providers/EmotionRegistry";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import ThemeProvider from "@/components/providers/ThemeProvider";
 
 const roboto = Roboto({
@@ -35,9 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
-        <EmotionRegistry>
+        <AppRouterCacheProvider>
           <ThemeProvider>{children}</ThemeProvider>
-        </EmotionRegistry>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
