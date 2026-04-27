@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
 import { useEffect, useState } from "react";
@@ -164,11 +165,24 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ position: "relative", p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
         <Skeleton variant="text" width={180} height={40} />
         <Skeleton variant="rounded" height={120} />
         <Skeleton variant="rounded" height={80} />
         <Skeleton variant="rounded" height={160} />
+        <Box
+          sx={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
+        >
+          <KuraLogo />
+        </Box>
       </Box>
     );
   }

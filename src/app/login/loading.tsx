@@ -1,4 +1,5 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
 
 const LoginLoading = () => {
   return (
@@ -10,7 +11,7 @@ const LoginLoading = () => {
         justifyContent: "center",
       }}
     >
-      <CircularProgress />
+      <KuraLogo />
     </Box>
   );
 };

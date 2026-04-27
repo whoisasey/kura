@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Divider,
   IconButton,
   Slider,
@@ -13,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
 import {
   addActivity,
   addMeal,
@@ -181,7 +181,7 @@ const JournalPage = () => {
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress />
+        <KuraLogo />
       </Box>
     );
   }

@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
-import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
+import KuraLogo from "@/components/ui/KuraLogo";
 
 const tabs = [
-  { label: "Home", icon: <HomeRoundedIcon />, path: "/" },
+  { label: "Home", icon: <KuraLogo size={24} showWordmark={false} animate={false} />, path: "/" },
   { label: "Cycle", icon: <FavoriteRoundedIcon />, path: "/cycle" },
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
   { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },

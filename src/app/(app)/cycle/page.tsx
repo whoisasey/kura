@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Box, Stack } from '@mui/material'
+import KuraLogo from '@/components/ui/KuraLogo'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getLatestCycle, getLast6Cycles } from '@/lib/supabase/queries/cycles'
@@ -61,7 +62,22 @@ const CyclePage = () => {
   }, [refresh, router])
 
   return (
-    <Box sx={{ px: 2, pb: 4 }}>
+    <Box sx={{ px: 2, pb: 4, position: 'relative' }}>
+      {loading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          <KuraLogo />
+        </Box>
+      )}
       <Stack spacing={2} sx={{ pt: 2 }}>
         <PhaseHeader insight={insight} loading={loading} predictedNextPeriod={predictedNextPeriod} />
         <CycleCalendar latestCycle={latestCycle} cycles={cycles} />
