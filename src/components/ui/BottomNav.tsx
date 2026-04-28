@@ -6,8 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
-import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
 import KuraLogo from "@/components/ui/KuraLogo";
+import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
 
 const tabs = [
   { label: "Home", icon: <KuraLogo size={24} showWordmark={false} animate={false} />, path: "/" },
