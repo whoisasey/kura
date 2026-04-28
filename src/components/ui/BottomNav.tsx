@@ -3,16 +3,16 @@
 import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
-import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
+import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
+import KuraLogo from "@/components/ui/KuraLogo";
 
 const tabs = [
-  { label: "Home", icon: <HomeRoundedIcon />, path: "/" },
+  { label: "Home", icon: <KuraLogo size={24} showWordmark={false} animate={false} />, path: "/" },
+  { label: "Cycle", icon: <FavoriteRoundedIcon />, path: "/cycle" },
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
-  { label: "Cycle", icon: <AutoAwesomeRoundedIcon />, path: "/cycle" },
   { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },
   { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
 ];

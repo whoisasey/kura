@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Card, CardContent, Chip, CircularProgress, LinearProgress, Typography } from "@mui/material";
+import { Box, Card, CardContent, Chip, LinearProgress, Typography } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
 import { getRecentEntries, getRecentSymptoms } from "@/lib/supabase/queries/insights";
 import { useEffect, useState } from "react";
 
@@ -62,7 +63,7 @@ const InsightsPage = () => {
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress />
+        <KuraLogo />
       </Box>
     );
   }

@@ -1,14 +1,18 @@
 "use client";
 
 import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
+import type { EnvAlerts, WeatherReading } from "@/types/index";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
 import { createClient } from "@/lib/supabase/client";
+import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useRouter } from "next/navigation";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
 
@@ -18,6 +22,7 @@ interface Prediction {
   suggested_meals?: string[];
   suggested_activities?: string[];
   general_heads_up?: string;
+  call_type?: string;
 }
 
 interface Cycle {
@@ -46,11 +51,22 @@ const phaseColors: Record<string, string> = {
   luteal: "#6B8F71",
 };
 
-const getGreeting = () => {
+const getGreeting = (name: string | null) => {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  const suffix = name ? `, ${name}` : "";
+  if (hour < 12) return `Good morning${suffix}`;
+  if (hour < 17) return `Good afternoon${suffix}`;
+  return `Good evening${suffix}`;
+};
+
+const getDisplayName = (user: { user_metadata?: { display_name?: string }; email?: string } | null): string | null => {
+  if (!user) return null;
+  if (user.user_metadata?.display_name) return user.user_metadata.display_name;
+  if (user.email) {
+    const local = user.email.split("@")[0];
+    return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return null;
 };
 
 const formatDate = () =>
@@ -60,9 +76,7 @@ const formatDate = () =>
     day: "numeric",
   });
 
-const deriveEnvAlerts = (
-  reading: WeatherReading | null
-): EnvAlerts => ({
+const deriveEnvAlerts = (reading: WeatherReading | null): EnvAlerts => ({
   pressureDelta: reading?.pressure_delta_6h ?? null,
   pressureDropForecast: reading?.pressure_drop_forecast ?? false,
   aqiAlert: typeof reading?.aqi === "number" && reading.aqi > 50,
@@ -75,6 +89,7 @@ const deriveEnvAlerts = (
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [cycleDay, setCycleDay] = useState<number | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [cycle, setCycle] = useState<Cycle | null>(null);
@@ -94,6 +109,8 @@ const DashboardPage = () => {
         return;
       }
 
+      setDisplayName(getDisplayName(user));
+
       const [pred, cyc, entry, weather] = await Promise.all([
         getTodayPrediction(user.id),
         getLatestCycle(user.id),
@@ -107,8 +124,9 @@ const DashboardPage = () => {
       if (weather) setWeatherReading(weather);
 
       if (cyc?.period_start) {
-        const day =
-          Math.floor((Date.now() - new Date(cyc.period_start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const [y, m, d] = cyc.period_start.split("-").map(Number);
+        const start = new Date(y, m - 1, d);
+        const day = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setCycleDay(day);
       }
 
@@ -149,11 +167,24 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ position: "relative", p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
         <Skeleton variant="text" width={180} height={40} />
         <Skeleton variant="rounded" height={120} />
         <Skeleton variant="rounded" height={80} />
         <Skeleton variant="rounded" height={160} />
+        <Box
+          sx={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
+        >
+          <KuraLogo />
+        </Box>
       </Box>
     );
   }
@@ -161,12 +192,24 @@ const DashboardPage = () => {
   const phase = prediction?.phase ?? cycle?.phase ?? null;
   const envAlerts = deriveEnvAlerts(weatherReading);
 
+  const cycleInsight = (() => {
+    if (prediction?.call_type !== "cycle_insight" || !prediction.hormone_note) return null;
+    try {
+      return JSON.parse(prediction.hormone_note) as {
+        hormone_note: { headline: string };
+        exercise: { recommended_type: string; duration_minutes: number };
+      };
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Header */}
       <Box>
         <Typography variant="h2" sx={{ fontSize: "1.5rem", fontWeight: 500 }}>
-          {getGreeting()}
+          {getGreeting(displayName)}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {formatDate()}
@@ -197,7 +240,20 @@ const DashboardPage = () => {
                   </Typography>
                 )}
               </Box>
-              {prediction?.hormone_note && (
+              {cycleInsight && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {cycleInsight.hormone_note.headline}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: "text.disabled" }} />
+                    <Typography variant="caption" color="text.disabled">
+                      {cycleInsight.exercise.recommended_type} · {cycleInsight.exercise.duration_minutes} min
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              {!cycleInsight && prediction?.hormone_note && prediction?.call_type !== "cycle_insight" && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {prediction.hormone_note}
                 </Typography>
