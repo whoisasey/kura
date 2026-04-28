@@ -1,7 +1,6 @@
 "use client";
 
 import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
-import KuraLogo from "@/components/ui/KuraLogo";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
 import { useEffect, useState } from "react";
@@ -10,6 +9,7 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
+import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useRouter } from "next/navigation";
