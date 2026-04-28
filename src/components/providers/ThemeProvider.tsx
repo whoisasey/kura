@@ -1,7 +1,7 @@
 "use client";
 
 import { CssBaseline, ThemeProvider as MuiThemeProvider } from "@mui/material";
-import { ReactNode, createContext, useContext, useEffect, useState } from "react";
+import { ReactNode, createContext, startTransition, useContext, useEffect, useState } from "react";
 import { darkTheme, lightTheme } from "@/styles/theme";
 
 type Mode = "light" | "dark";
@@ -18,12 +18,8 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("kura-theme") as Mode | null;
-    if (stored) {
-      setMode(stored);
-      return;
-    }
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setMode(prefersDark ? "dark" : "light");
+    startTransition(() => setMode(stored ?? (prefersDark ? "dark" : "light")));
   }, []);
 
   const toggle = () => {

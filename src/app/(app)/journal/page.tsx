@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Divider,
   IconButton,
   Slider,
@@ -13,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import KuraLogo from "@/components/ui/KuraLogo";
 import {
   addActivity,
   addMeal,
@@ -42,7 +42,7 @@ const moodEmoji: Record<string, string> = {
 };
 const mealTypes = ["breakfast", "lunch", "dinner", "snack"] as const;
 const activityTypes = ["exercise", "rest", "social", "creative", "work", "other"] as const;
-const symptomList = ["cramps", "bloating", "headache", "acne", "fatigue", "breast_tenderness", "other"] as const;
+const symptomList = ["cramps", "bloating", "headache", "acne", "fatigue", "breast_tenderness", "joint_pain", "other"] as const;
 
 interface JournalEntry {
   id: string;
@@ -181,7 +181,7 @@ const JournalPage = () => {
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress />
+        <KuraLogo />
       </Box>
     );
   }

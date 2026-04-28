@@ -9,6 +9,7 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
+import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useRouter } from "next/navigation";
@@ -164,11 +165,24 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ position: "relative", p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
         <Skeleton variant="text" width={180} height={40} />
         <Skeleton variant="rounded" height={120} />
         <Skeleton variant="rounded" height={80} />
         <Skeleton variant="rounded" height={160} />
+        <Box
+          sx={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
+        >
+          <KuraLogo />
+        </Box>
       </Box>
     );
   }
