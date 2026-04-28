@@ -19,29 +19,6 @@ const KuraLogo = ({ size = 64, showWordmark = true, animate = true }: KuraLogoPr
         xmlns="http://www.w3.org/2000/svg"
       >
         <style>{`
-          .orbit-outer {
-            transform-origin: 32px 32px;
-            animation: ${animate ? 'orbit-pulse 3s ease-in-out infinite' : 'none'};
-          }
-          .orbit-inner {
-            transform-origin: 32px 32px;
-            animation: ${animate ? 'orbit-pulse 3s ease-in-out infinite 0.4s' : 'none'};
-          }
-          .orbit-core {
-            animation: ${animate ? 'core-glow 3s ease-in-out infinite' : 'none'};
-          }
-          .orbit-dot-top {
-            transform-origin: 32px 32px;
-            animation: ${animate ? 'dot-orbit 4s linear infinite' : 'none'};
-          }
-          .orbit-dot-br {
-            transform-origin: 32px 32px;
-            animation: ${animate ? 'dot-orbit 4s linear infinite 1.3s' : 'none'};
-          }
-          .orbit-dot-bl {
-            transform-origin: 32px 32px;
-            animation: ${animate ? 'dot-orbit 4s linear infinite 2.6s' : 'none'};
-          }
           @keyframes orbit-pulse {
             0%, 100% { opacity: 0.3; }
             50%       { opacity: 1; }
@@ -50,48 +27,73 @@ const KuraLogo = ({ size = 64, showWordmark = true, animate = true }: KuraLogoPr
             0%, 100% { r: 5; opacity: 0.8; }
             50%       { r: 7; opacity: 1; }
           }
-          @keyframes dot-orbit {
-            0%   { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
         `}</style>
 
         {/* Outer ring */}
         <circle
-          className="orbit-outer"
           cx="32" cy="32" r="28"
           stroke="currentColor"
           strokeOpacity={0.25}
           strokeWidth="1"
+          style={{ animation: animate ? 'orbit-pulse 3s ease-in-out infinite' : 'none' }}
         />
 
         {/* Inner dashed ring */}
         <circle
-          className="orbit-inner"
           cx="32" cy="32" r="18"
           stroke="currentColor"
           strokeOpacity={0.4}
           strokeWidth="0.75"
           strokeDasharray="2 3"
+          style={{ animation: animate ? 'orbit-pulse 3s ease-in-out infinite 0.4s' : 'none' }}
         />
 
         {/* Core dot */}
         <circle
-          className="orbit-core"
           cx="32" cy="32" r="5"
           fill="currentColor"
+          style={{ animation: animate ? 'core-glow 3s ease-in-out infinite' : 'none' }}
         />
 
-        {/* Orbiting dots */}
-        <g className="orbit-dot-top">
-          <circle cx="32" cy="4" r="4" fill="currentColor" opacity="1" />
-        </g>
-        <g className="orbit-dot-br">
-          <circle cx="56.9" cy="46" r="2.5" fill="currentColor" opacity="0.7" />
-        </g>
-        <g className="orbit-dot-bl">
-          <circle cx="7.1" cy="46" r="2.5" fill="currentColor" opacity="0.5" />
-        </g>
+        {/* Orbiting dot — uses SVG-native animateTransform so it travels the ring correctly */}
+        <circle cx="32" cy="4" r="4" fill="currentColor">
+          {animate && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 32 32"
+              to="360 32 32"
+              dur="4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </circle>
+
+        {/* Trailing dots at 120° offsets */}
+        <circle cx="32" cy="4" r="2.5" fill="currentColor" opacity="0.6">
+          {animate && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="-120 32 32"
+              to="240 32 32"
+              dur="4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </circle>
+        <circle cx="32" cy="4" r="2.5" fill="currentColor" opacity="0.3">
+          {animate && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="-240 32 32"
+              to="120 32 32"
+              dur="4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </circle>
       </svg>
 
       {showWordmark && (
