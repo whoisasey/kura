@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export const getOrCreateTodayEntry = async (userId: string) => {
   const supabase = createClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const { data: existing } = await supabase
     .from("journal_entries")
