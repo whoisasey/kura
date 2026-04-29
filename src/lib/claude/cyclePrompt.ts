@@ -27,11 +27,13 @@ export const buildCycleUserMessage = (data: {
   today: string;
   cycleDay: number;
   phase: CyclePhase;
+  tomorrowCycleDay: number;
+  tomorrowPhase: CyclePhase;
   cycles: Cycle[];
   journalEntries: JournalEntry[];
   journalWithSymptoms?: JournalWithSymptoms[];
 }): string => {
-  const { today, cycleDay, phase, cycles, journalEntries, journalWithSymptoms = [] } = data;
+  const { today, cycleDay, phase, tomorrowCycleDay, tomorrowPhase, cycles, journalEntries, journalWithSymptoms = [] } = data;
 
   const cycleHistory = cycles
     .map((c) => {
@@ -58,6 +60,8 @@ export const buildCycleUserMessage = (data: {
   return `Today's date: ${today}
 Current cycle day: ${cycleDay}
 Current phase: ${phase}
+Tomorrow's cycle day: ${tomorrowCycleDay}
+Tomorrow's phase: ${tomorrowPhase}
 
 Cycle history (most recent first):
 ${cycleHistory || "  (no history)"}
@@ -68,7 +72,7 @@ ${recentJournal || "  (no entries)"}
 Symptom history across recent cycles:
 ${symptomHistory || "  (no symptom data)"}
 
-Return the cycle insight JSON for today. The JSON must match exactly this shape:
+Return the cycle insight JSON for today, including a tomorrow_exercise recommendation based on tomorrow's cycle day and phase. The JSON must match exactly this shape:
 {
   "phase": "<menstrual|follicular|ovulation|luteal>",
   "cycle_day": <number>,
@@ -81,6 +85,14 @@ Return the cycle insight JSON for today. The JSON must match exactly this shape:
     "heads_up": "<string or null>"
   },
   "exercise": {
+    "recommended_type": "<string>",
+    "intensity": "<low|moderate>",
+    "duration_minutes": <number>,
+    "rationale": "<string, max 2 sentences>",
+    "avoid": ["<string>", ...],
+    "if_you_feel_up_to_more": "<string>"
+  },
+  "tomorrow_exercise": {
     "recommended_type": "<string>",
     "intensity": "<low|moderate>",
     "duration_minutes": <number>,

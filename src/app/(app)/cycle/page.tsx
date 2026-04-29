@@ -42,8 +42,9 @@ const CyclePage = () => {
         return;
       }
 
+      const localDate = new Date().toLocaleDateString("en-CA");
       const [insightRes, cycle, last6] = await Promise.all([
-        fetch("/api/cycle-insight").then((r) => r.json()),
+        fetch(`/api/cycle-insight?date=${localDate}`).then((r) => r.json()),
         getLatestCycle(supabase, user.id),
         getLast6Cycles(supabase, user.id),
       ]);

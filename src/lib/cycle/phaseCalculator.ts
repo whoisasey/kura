@@ -1,9 +1,9 @@
 export type CyclePhase = "menstrual" | "follicular" | "ovulation" | "luteal";
 
-export const computeCycleDay = (periodStart: string): number => {
+export const computeCycleDay = (periodStart: string, localDate?: string): number => {
   const [y, m, d] = periodStart.split("-").map(Number);
   const start = new Date(y, m - 1, d);
-  const today = new Date();
+  const today = localDate ? new Date(localDate + "T00:00:00") : new Date();
   today.setHours(0, 0, 0, 0);
   return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 };
