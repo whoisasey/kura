@@ -3,9 +3,9 @@ import type { CycleInsight } from '@/types/index'
 
 export const getTodayCycleInsight = async (
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  today: string
 ): Promise<CycleInsight | null> => {
-  const today = new Date().toISOString().split('T')[0]
 
   const { data } = await supabase
     .from('predictions')

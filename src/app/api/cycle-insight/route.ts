@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const anthropic = new Anthropic();
 
-export const GET = async (): Promise<Response> => {
+export const GET = async (request: Request): Promise<Response> => {
   const supabase = await createClient();
 
   const {
@@ -20,12 +20,15 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const today = searchParams.get("date") ?? new Date().toISOString().split("T")[0];
+
   // 1. Cache check — recompute positional fields so day/phase never drift
-  const cached = await getTodayCycleInsight(supabase, user.id);
+  const cached = await getTodayCycleInsight(supabase, user.id, today);
   if (cached) {
     const cachedCycle = await getLatestCycle(supabase, user.id);
     if (cachedCycle) {
-      const freshDay = computeCycleDay(cachedCycle.period_start);
+      const freshDay = computeCycleDay(cachedCycle.period_start, today);
       const freshDaysLeft = daysUntilNextPhase(freshDay);
       return Response.json({
         ...cached,
@@ -42,10 +45,13 @@ export const GET = async (): Promise<Response> => {
   }
 
   // 2. Cache miss — fetch data
-  const today = new Date().toISOString().split("T")[0];
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split("T")[0];
+  const localDateObj = new Date(today + "T00:00:00");
+  const ninetyDaysAgo = new Date(today + "T00:00:00");
+  ninetyDaysAgo.setDate(localDateObj.getDate() - 90);
+  const ninetyDaysAgoStr = ninetyDaysAgo.toLocaleDateString("en-CA");
+  const sevenDaysAgo = new Date(today + "T00:00:00");
+  sevenDaysAgo.setDate(localDateObj.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toLocaleDateString("en-CA");
 
   const [latestCycle, cycles, journalRes, symptomRes] = await Promise.all([
     getLatestCycle(supabase, user.id),
@@ -56,14 +62,7 @@ export const GET = async (): Promise<Response> => {
         "id, user_id, entry_date, mood, energy_level, sleep_hours, stress_level, hydration_level, notes, updated_at"
       )
       .eq("user_id", user.id)
-      .gte(
-        "entry_date",
-        (() => {
-          const d = new Date();
-          d.setDate(d.getDate() - 7);
-          return d.toISOString().split("T")[0];
-        })()
-      )
+      .gte("entry_date", sevenDaysAgoStr)
       .order("entry_date", { ascending: false })
       .limit(7),
     supabase
@@ -84,7 +83,7 @@ export const GET = async (): Promise<Response> => {
     entry_date: string;
     symptoms: Array<{ symptom: string; severity: number }>;
   }>;
-  const cycleDay = computeCycleDay(latestCycle.period_start);
+  const cycleDay = computeCycleDay(latestCycle.period_start, today);
   const phase = computePhase(cycleDay);
   const daysLeft = daysUntilNextPhase(cycleDay);
   const tomorrowCycleDay = cycleDay + 1;
