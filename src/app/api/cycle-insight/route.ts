@@ -41,7 +41,7 @@ export const GET = async (request: Request): Promise<Response> => {
         },
       });
     }
-    return Response.json(cached);
+    // Can't recompute without a cycle — fall through to fresh call
   }
 
   // 2. Cache miss — fetch data

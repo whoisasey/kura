@@ -13,7 +13,9 @@ export const getTodayCycleInsight = async (
     .eq('user_id', userId)
     .eq('prediction_date', today)
     .eq('call_type', 'cycle_insight')
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   if (!data?.hormone_note) return null
 
