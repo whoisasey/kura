@@ -47,6 +47,14 @@ export interface CycleInsight {
     avoid: string[];
     if_you_feel_up_to_more: string;
   };
+  tomorrow_exercise: {
+    recommended_type: string;
+    intensity: "low" | "moderate";
+    duration_minutes: number;
+    rationale: string;
+    avoid: string[];
+    if_you_feel_up_to_more: string;
+  } | null;
   transition_briefing: {
     arriving_in_days: number;
     next_phase_name: string;

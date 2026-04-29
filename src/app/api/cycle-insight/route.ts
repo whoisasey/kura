@@ -87,12 +87,16 @@ export const GET = async (): Promise<Response> => {
   const cycleDay = computeCycleDay(latestCycle.period_start);
   const phase = computePhase(cycleDay);
   const daysLeft = daysUntilNextPhase(cycleDay);
+  const tomorrowCycleDay = cycleDay + 1;
+  const tomorrowPhase = computePhase(tomorrowCycleDay);
 
   // 4. Build prompt and call Claude
   const userMessage = buildCycleUserMessage({
     today,
     cycleDay,
     phase,
+    tomorrowCycleDay,
+    tomorrowPhase,
     cycles,
     journalEntries,
     journalWithSymptoms,
