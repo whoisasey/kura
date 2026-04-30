@@ -27,7 +27,7 @@ interface LogPeriodFabProps {
   onLogged: () => void;
 }
 
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => new Date().toLocaleDateString("en-CA");
 
 const SYMPTOMS = [
   "cramps",
@@ -136,11 +136,11 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      if (activeCycle && activeCycle.period_start === periodStart) {
+      if (activeCycle) {
         if (periodEnd && !activeCycle.period_end) {
           await updateCycleEnd(supabase, activeCycle.id, periodEnd);
         }
-        const updates: Record<string, string | null> = { notes: notesValue };
+        const updates: Record<string, string | null> = { notes: notesValue, period_start: periodStart };
         if (day1Flow) updates.flow_intensity = day1Flow;
         if (periodEnd) updates.period_end = periodEnd;
         await supabase.from("cycles").update(updates).eq("id", activeCycle.id);
