@@ -1,11 +1,12 @@
 export type CyclePhase = "menstrual" | "follicular" | "ovulation" | "luteal";
 
 export const computeCycleDay = (periodStart: string, localDate?: string): number => {
-  const [y, m, d] = periodStart.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
-  const today = localDate ? new Date(localDate + "T00:00:00") : new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const [sy, sm, sd] = periodStart.split("-").map(Number);
+  const todayStr = localDate ?? new Date().toLocaleDateString("en-CA");
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  const todayMs = Date.UTC(ty, tm - 1, td);
+  return Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
 };
 
 export const computePhase = (cycleDay: number, avgCycleLength: number = 28): CyclePhase => {
