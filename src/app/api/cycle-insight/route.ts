@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const anthropic = new Anthropic();
 
+const noCache = { headers: { "Cache-Control": "no-store" } };
+
 export const GET = async (request: Request): Promise<Response> => {
   const supabase = await createClient();
 
@@ -17,7 +19,7 @@ export const GET = async (request: Request): Promise<Response> => {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
+    return Response.json({ error: "unauthorized" }, { status: 401, ...noCache });
   }
 
   const { searchParams } = new URL(request.url);
@@ -39,7 +41,7 @@ export const GET = async (request: Request): Promise<Response> => {
           ...cached.transition_briefing,
           arriving_in_days: freshDaysLeft,
         },
-      });
+      }, noCache);
     }
     // Can't recompute without a cycle — fall through to fresh call
   }
@@ -75,7 +77,7 @@ export const GET = async (request: Request): Promise<Response> => {
 
   // 3. No cycles logged yet
   if (!latestCycle) {
-    return Response.json({ noData: true });
+    return Response.json({ noData: true }, noCache);
   }
 
   const journalEntries: JournalEntry[] = (journalRes.data ?? []) as JournalEntry[];
@@ -134,9 +136,9 @@ export const GET = async (request: Request): Promise<Response> => {
 
     // Fallback: return last cached insight regardless of date
     const stale = await getLatestCachedInsight(supabase, user.id);
-    if (stale) return Response.json(stale);
+    if (stale) return Response.json(stale, noCache);
 
-    return Response.json({ error: "insight_failed" }, { status: 500 });
+    return Response.json({ error: "insight_failed" }, { status: 500, ...noCache });
   }
 
   // 5. Persist to predictions table — check first to guarantee at-most-one insert per user per day
@@ -164,5 +166,5 @@ export const GET = async (request: Request): Promise<Response> => {
     // Non-fatal — still return the insight
   }
 
-  return Response.json(insight);
+  return Response.json(insight, noCache);
 };
