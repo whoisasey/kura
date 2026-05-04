@@ -23,7 +23,7 @@ export const GET = async (request: Request): Promise<Response> => {
   }
 
   const { searchParams } = new URL(request.url);
-  const today = searchParams.get("date") ?? new Date().toISOString().split("T")[0];
+  const today = searchParams.get("date") ?? new Date().toLocaleDateString("en-CA");
 
   // 1. Cache check — recompute positional fields so day/phase never drift
   const cached = await getTodayCycleInsight(supabase, user.id, today);
