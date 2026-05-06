@@ -66,6 +66,14 @@ const CyclePage = () => {
     load();
   }, [refresh, router]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setRefresh((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
   return (
     <Box sx={{ px: 2, pb: 4, position: "relative" }}>
       {loading && (
