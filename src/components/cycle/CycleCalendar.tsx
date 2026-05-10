@@ -2,6 +2,7 @@
 
 import { Box, Tooltip } from "@mui/material";
 import { computeAvgCycleInterval, computeCycleDay, computePhase } from "@/lib/cycle/phaseCalculator";
+import { useEffect, useRef } from "react";
 
 import type { Cycle } from "@/types/index";
 import type { CyclePhase } from "@/lib/cycle/phaseCalculator";
@@ -19,10 +20,20 @@ interface CycleCalendarProps {
 }
 
 const CycleCalendar = ({ latestCycle, cycles }: CycleCalendarProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const todayRef = useRef<HTMLDivElement>(null);
+
   const periodStarts = cycles.map((c) => c.period_start);
   const avgInterval = computeAvgCycleInterval(periodStarts);
   const totalDays = Math.max(avgInterval, 28);
   const todayCycleDay = latestCycle ? computeCycleDay(latestCycle.period_start) : null;
+
+  useEffect(() => {
+    if (containerRef.current && todayRef.current) {
+      containerRef.current.scrollLeft =
+        todayRef.current.offsetLeft - containerRef.current.offsetLeft;
+    }
+  }, [todayCycleDay]);
 
   // Predicted period: starts at avgInterval days from period_start (cycle day = avgInterval)
   // Show predicted menstrual dots for 5 days after totalDays
@@ -30,6 +41,7 @@ const CycleCalendar = ({ latestCycle, cycles }: CycleCalendarProps) => {
 
   return (
     <Box
+      ref={containerRef}
       sx={{
         display: "flex",
         flexDirection: "row",
@@ -56,6 +68,7 @@ const CycleCalendar = ({ latestCycle, cycles }: CycleCalendarProps) => {
         return (
           <Tooltip key={day} title={`Day ${day} · ${phase}`} placement="top">
             <Box
+              ref={isToday ? todayRef : undefined}
               sx={{
                 width: size,
                 height: size,
