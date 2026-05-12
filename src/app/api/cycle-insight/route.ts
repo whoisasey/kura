@@ -11,6 +11,8 @@ const anthropic = new Anthropic();
 
 const noCache = { headers: { "Cache-Control": "no-store" } };
 
+export const maxDuration = 60;
+
 export const GET = async (request: Request): Promise<Response> => {
   const supabase = await createClient();
 
@@ -106,12 +108,15 @@ export const GET = async (request: Request): Promise<Response> => {
   let insight: CycleInsight;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1536,
-      system: CYCLE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    });
+    const message = await anthropic.messages.create(
+      {
+        model: "claude-sonnet-4-6",
+        max_tokens: 1536,
+        system: CYCLE_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
+      },
+      { timeout: 8000 }
+    );
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
     const text = raw
