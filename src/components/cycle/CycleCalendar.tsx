@@ -30,8 +30,7 @@ const CycleCalendar = ({ latestCycle, cycles }: CycleCalendarProps) => {
 
   useEffect(() => {
     if (containerRef.current && todayRef.current) {
-      containerRef.current.scrollLeft =
-        todayRef.current.offsetLeft - containerRef.current.offsetLeft;
+      containerRef.current.scrollLeft = todayRef.current.offsetLeft - containerRef.current.offsetLeft - 6;
     }
   }, [todayCycleDay]);
 
