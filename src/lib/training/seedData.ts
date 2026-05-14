@@ -1,0 +1,92 @@
+import type { TrainingPlan } from "@/types/training";
+
+export const runLongerPlan: TrainingPlan = {
+  name: "Run Longer",
+  description: "8-week base building plan with unilateral lift days",
+  totalWeeks: 8,
+  currentWeek: 4,
+  weeks: [
+    {
+      weekNumber: 3,
+      phase: "Build 1",
+      weeklyKm: 7,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "Full body compound" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "run", label: "Easy Run", sub: "3k @ easy pace", distanceKm: 3 },
+        { dayOfWeek: 3, type: "unilateral", label: "Unilateral", sub: "Single-leg focus" },
+        { dayOfWeek: 4, type: "rest", label: "Rest" },
+        { dayOfWeek: 5, type: "run", label: "Long Run", sub: "4k @ easy pace", distanceKm: 4 },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+    {
+      weekNumber: 4,
+      weeklyKm: 7.4,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "Full body compound" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "run", label: "Easy Run", sub: "3k @ easy pace", distanceKm: 3 },
+        { dayOfWeek: 3, type: "rest", label: "Rest" },
+        { dayOfWeek: 4, type: "unilateral", label: "Unilateral", sub: "Single-leg focus" },
+        { dayOfWeek: 5, type: "run", label: "Long Run", sub: "4.4k @ easy pace", distanceKm: 4.4 },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+    {
+      weekNumber: 5,
+      phase: "Deload",
+      isDeload: true,
+      weeklyKm: 3.5,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "−15% load" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "run", label: "Long Run", sub: "3.5k @ easy pace", distanceKm: 3.5 },
+        { dayOfWeek: 3, type: "unilateral", label: "Unilateral", sub: "−15% load" },
+        { dayOfWeek: 4, type: "rest", label: "Buffer", sub: "Period window" },
+        { dayOfWeek: 5, type: "rest", label: "Rest" },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+    {
+      weekNumber: 6,
+      phase: "Build 2",
+      weeklyKm: 9.3,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "tempo", label: "Tempo Run", sub: "2k easy + 1.5k tempo + 1k easy", distanceKm: 4.5 },
+        { dayOfWeek: 3, type: "unilateral", label: "Unilateral" },
+        { dayOfWeek: 4, type: "rest", label: "Rest" },
+        { dayOfWeek: 5, type: "run", label: "Long Run", sub: "4.8k @ easy pace", distanceKm: 4.8 },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+    {
+      weekNumber: 7,
+      weeklyKm: 9.9,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "tempo", label: "Tempo Run", sub: "2k easy + 2k tempo + 1k easy", distanceKm: 5 },
+        { dayOfWeek: 3, type: "unilateral", label: "Unilateral" },
+        { dayOfWeek: 4, type: "rest", label: "Rest" },
+        { dayOfWeek: 5, type: "run", label: "Long Run", sub: "5.3k @ easy pace", distanceKm: 5.3 },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+    {
+      weekNumber: 8,
+      weeklyKm: 10.5,
+      sessions: [
+        { dayOfWeek: 0, type: "heavy", label: "Heavy Lift" },
+        { dayOfWeek: 1, type: "rest", label: "Rest" },
+        { dayOfWeek: 2, type: "tempo", label: "Tempo Run", sub: "2k easy + 2.5k tempo + 1k easy", distanceKm: 5.5 },
+        { dayOfWeek: 3, type: "unilateral", label: "Unilateral" },
+        { dayOfWeek: 4, type: "rest", label: "Rest" },
+        { dayOfWeek: 5, type: "run", label: "Long Run", sub: "5.8k @ easy pace", distanceKm: 5.8 },
+        { dayOfWeek: 6, type: "rest", label: "Rest" },
+      ],
+    },
+  ],
+};
