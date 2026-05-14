@@ -12,6 +12,7 @@ import EnvBanner from "@/components/env/EnvBanner";
 import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
+import { runLongerPlan } from "@/lib/training/seedData";
 import { useRouter } from "next/navigation";
 
 interface Prediction {
@@ -48,6 +49,7 @@ const phaseColors: Record<string, string> = {
   ovulation: "#D4853A",
   luteal: "#6B8F71",
 };
+
 
 const getGreeting = (name: string | null) => {
   const hour = new Date().getHours();
@@ -243,12 +245,20 @@ const DashboardPage = () => {
                   <Typography variant="body2" color="text.secondary">
                     {cycleInsight.hormone_note.headline}
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                    <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: "text.disabled" }} />
-                    <Typography variant="caption" color="text.disabled">
-                      {cycleInsight.exercise.recommended_type} · {cycleInsight.exercise.duration_minutes} min
-                    </Typography>
-                  </Box>
+                  {(() => {
+                    const todayDow = new Date().getDay();
+                    const week = runLongerPlan.weeks.find(w => w.weekNumber === runLongerPlan.currentWeek);
+                    const session = week?.sessions.find(s => s.dayOfWeek === todayDow);
+                    if (!session || session.type === "rest") return null;
+                    return (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: "text.disabled" }} />
+                        <Typography variant="caption" color="text.disabled">
+                          {session.label}{session.sub ? ` — ${session.sub}` : ""}{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
                 </Box>
               )}
               {!cycleInsight && prediction?.hormone_note && prediction?.call_type !== "cycle_insight" && (

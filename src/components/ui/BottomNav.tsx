@@ -3,6 +3,7 @@
 import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 
+import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
@@ -13,6 +14,7 @@ const tabs = [
   { label: "Home", icon: <KuraLogo size={24} showWordmark={false} animate={false} />, path: "/" },
   { label: "Cycle", icon: <FavoriteRoundedIcon />, path: "/cycle" },
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
+  { label: "Training", icon: <DirectionsRunRoundedIcon />, path: "/training" },
   { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },
   { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
 ];
