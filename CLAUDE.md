@@ -136,4 +136,9 @@ All tables have RLS policies. Always use typed Supabase queries — never bypass
 
 ## TypeScript Learning Note
 
-This codebase is being used as a learning environment — formal TypeScript terminology should be called out in context when relevant. Flag concepts like generics, utility types (`Partial<T>`, `Pick<T>`, `Omit<T>`, `Record<K,V>`), type narrowing, discriminated unions, mapped types, and `unknown` vs `any` as they come up naturally in the build.
+Atina is a freelance web developer (WordPress, Shopify, Next.js). When working in TypeScript:
+- Name concepts formally when they come up (e.g. "this is a mapped type", "this is a type guard")
+- Add a one-liner explaining *why* it works that way
+- Occasionally prompt her to explain the concept back in her own words — she's building fluency in articulating TS fundamentals, not just using them
+- Keep prompts low-stakes, like explaining to another dev
+Don't do this for every line — just when something worth naming comes up.
