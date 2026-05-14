@@ -20,18 +20,12 @@ interface AISuggestionPanelProps {
   session: PlannedSession;
   cyclePhase?: CyclePhase;
   cycleDay?: number;
-  moodScore?: number;
-  energyScore?: number;
-  sleepScore?: number;
 }
 
 const AISuggestionPanel = ({
   session,
   cyclePhase,
   cycleDay,
-  moodScore,
-  energyScore,
-  sleepScore,
 }: AISuggestionPanelProps) => {
   const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,7 +39,7 @@ const AISuggestionPanel = ({
       const res = await fetch("/api/training/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, cyclePhase, cycleDay, moodScore, energyScore, sleepScore }),
+        body: JSON.stringify({ session, cyclePhase, cycleDay }),
       });
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json() as AISuggestion;

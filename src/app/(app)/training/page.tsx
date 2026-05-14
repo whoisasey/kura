@@ -35,9 +35,6 @@ const TrainingPage = () => {
   const [showAI, setShowAI] = useState(false);
   const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
   const [cycleDay, setCycleDay] = useState<number | undefined>();
-  const [moodScore, setMoodScore] = useState<number | undefined>();
-  const [energyScore, setEnergyScore] = useState<number | undefined>();
-  const [sleepScore, setSleepScore] = useState<number | undefined>();
 
   const todayDow = new Date().getDay();
   const todayStr = new Date().toLocaleDateString("en-CA");
@@ -49,14 +46,8 @@ const TrainingPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      const [activePlan, journalRes, cycleRes] = await Promise.all([
+      const [activePlan, cycleRes] = await Promise.all([
         getActivePlan(supabase, user.id),
-        supabase
-          .from("journal_entries")
-          .select("mood, energy_level, sleep_hours")
-          .eq("user_id", user.id)
-          .eq("entry_date", todayStr)
-          .maybeSingle(),
         supabase
           .from("cycle_entries")
           .select("phase, cycle_day")
@@ -72,13 +63,6 @@ const TrainingPage = () => {
         setViewWeekIndex(currentIdx >= 0 ? currentIdx : 0);
       } else {
         setPlan(null);
-      }
-
-      if (journalRes.data) {
-        const moodStr = journalRes.data.mood as string | null;
-        setMoodScore(moodStr ? parseInt(moodStr, 10) : undefined);
-        setEnergyScore(journalRes.data.energy_level ?? undefined);
-        setSleepScore(journalRes.data.sleep_hours ? Math.round(journalRes.data.sleep_hours) : undefined);
       }
 
       if (cycleRes.data) {
@@ -215,9 +199,6 @@ const TrainingPage = () => {
                 session={todaySession}
                 cyclePhase={cyclePhase}
                 cycleDay={cycleDay}
-                moodScore={moodScore}
-                energyScore={energyScore}
-                sleepScore={sleepScore}
               />
             </Box>
           )}
