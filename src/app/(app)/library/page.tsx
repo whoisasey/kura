@@ -28,7 +28,7 @@ const phases = [
     mood: "Curious, optimistic",
     hormones: ["Rising estrogen", "Low progesterone"],
     foods: ["Fermented foods", "Leafy greens", "Eggs", "Flaxseeds"],
-    movement: ["HIIT", "Strength training", "Dance", "Cycling"],
+    movement: ["Heavy compound lifts", "Easy run", "Unilateral strength work"],
     tips: [
       "Great time to start new projects — estrogen boosts creativity and motivation.",
       "Your pain tolerance is higher now; push a little harder in workouts.",
@@ -44,7 +44,7 @@ const phases = [
     mood: "Confident, magnetic",
     hormones: ["Peak estrogen", "LH surge", "Rising testosterone"],
     foods: ["Antioxidant-rich fruits", "Quinoa", "Salmon", "Zinc-rich foods"],
-    movement: ["High-intensity cardio", "Group fitness", "Competition"],
+    movement: ["Tempo run", "Heavy lifts — peak intensity window", "Long run at effort"],
     tips: [
       "You're at peak verbal and social ability — great for presentations.",
       "Testosterone boost makes this a good time for competitive or high-effort work.",
@@ -60,7 +60,7 @@ const phases = [
     mood: "Detail-oriented, then PMS possible",
     hormones: ["High progesterone", "Declining estrogen"],
     foods: ["Complex carbs", "B vitamins", "Magnesium-rich foods", "Leafy greens"],
-    movement: ["Pilates", "Hiking", "Swimming", "Light strength"],
+    movement: ["Unilateral focus (−15% load)", "Easy pace runs only", "Long run at easy pace"],
     tips: [
       "Good phase for detail work, editing, and completion tasks.",
       "Cravings are real — progesterone raises metabolism slightly, so you genuinely need more calories.",
