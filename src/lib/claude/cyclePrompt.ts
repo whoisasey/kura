@@ -14,8 +14,10 @@ export const CYCLE_SYSTEM_PROMPT =
   "hormone_note.whats_happening: 2 sentences max. Subject + verb + fact. No filler. " +
   "exercise.rationale: 1 sentence. Just the reason, grounded in their current symptoms or journal data if available. " +
   "transition_briefing.whats_shifting: 1 sentence. What changes, nothing more. " +
-  "symptom_forecast: only include symptoms that appeared in at least one prior cycle. days_away must be >= 0 (0 means today). " +
-  "If there is no symptom history, set symptom_forecast to null. " +
+  "symptom_forecast: only include symptoms that appeared in at least one prior cycle in the journal data provided. " +
+  "Forecast window is the next 14 days only (days_away 0–14). " +
+  "If no symptoms from prior cycles fall within that window, set symptom_forecast to null — do NOT return an empty upcoming array. " +
+  "Never invent symptoms from generic phase descriptions. " +
   "Never use: journey, empower, nourish, listen to your body, honour, optimal, wellness, doing its thing, at play, kick in. " +
   "Use wellness language only — never diagnostic or treatment language. " +
   "Respond ONLY in valid JSON. No preamble, no markdown, no text outside the JSON.";
@@ -107,17 +109,21 @@ Return the cycle insight JSON for today, including a tomorrow_exercise recommend
     "how_to_prepare": ["<string>", ...],
     "what_to_look_forward_to": "<string>"
   },
+  "symptom_forecast": null
+}
+
+If symptoms from prior cycles are expected within the next 14 days, use this shape instead:
   "symptom_forecast": {
     "upcoming": [
       {
         "symptom": "<string>",
         "likely_day": <number>,
-        "days_away": <number>,
+        "days_away": <number, must be 0–14>",
         "confidence": "<likely|possible>"
       }
     ]
-  } | null
-}`;
+  }
+If no prior-cycle symptoms fall in that window, symptom_forecast must be null — not an empty array.`;
 };
 
 function formatCycleNotes(notes: string): string {

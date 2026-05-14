@@ -1,6 +1,6 @@
 import { CYCLE_SYSTEM_PROMPT, buildCycleUserMessage } from "@/lib/claude/cyclePrompt";
 import type { CycleInsight, JournalEntry } from "@/types/index";
-import { computeCycleDay, computePhase, daysUntilNextPhase } from "@/lib/cycle/phaseCalculator";
+import { computeAvgCycleInterval, computeCycleDay, computePhase, daysUntilNextPhase } from "@/lib/cycle/phaseCalculator";
 import { getLast6Cycles, getLatestCycle } from "@/lib/supabase/queries/cycles";
 import { getLatestCachedInsight, getTodayCycleInsight } from "@/lib/supabase/queries/predictions";
 
@@ -30,15 +30,27 @@ export const GET = async (request: Request): Promise<Response> => {
   // 1. Cache check — recompute positional fields so day/phase never drift
   const cached = await getTodayCycleInsight(supabase, user.id, today);
   if (cached) {
-    const cachedCycle = await getLatestCycle(supabase, user.id);
+    const [cachedCycle, cachedHistory] = await Promise.all([
+      getLatestCycle(supabase, user.id),
+      getLast6Cycles(supabase, user.id),
+    ]);
     if (cachedCycle) {
       const freshDay = computeCycleDay(cachedCycle.period_start, today);
-      const freshDaysLeft = daysUntilNextPhase(freshDay);
+      const avgLen = computeAvgCycleInterval(cachedHistory.map(c => c.period_start));
+      const freshDaysLeft = daysUntilNextPhase(freshDay, avgLen);
+      const recomputedForecast = cached.symptom_forecast
+        ? {
+            upcoming: cached.symptom_forecast.upcoming
+              .map(item => ({ ...item, days_away: item.likely_day - freshDay }))
+              .filter(item => item.days_away >= 0 && item.days_away <= 14),
+          }
+        : null;
       return Response.json({
         ...cached,
         cycle_day: freshDay,
         phase: computePhase(freshDay),
         days_until_next_phase: freshDaysLeft,
+        symptom_forecast: recomputedForecast?.upcoming.length ? recomputedForecast : null,
         transition_briefing: {
           ...cached.transition_briefing,
           arriving_in_days: freshDaysLeft,
@@ -89,7 +101,8 @@ export const GET = async (request: Request): Promise<Response> => {
   }>;
   const cycleDay = computeCycleDay(latestCycle.period_start, today);
   const phase = computePhase(cycleDay);
-  const daysLeft = daysUntilNextPhase(cycleDay);
+  const avgCycleLength = computeAvgCycleInterval(cycles.map(c => c.period_start));
+  const daysLeft = daysUntilNextPhase(cycleDay, avgCycleLength);
   const tomorrowCycleDay = cycleDay + 1;
   const tomorrowPhase = computePhase(tomorrowCycleDay);
 
@@ -125,12 +138,22 @@ export const GET = async (request: Request): Promise<Response> => {
       .trim();
     const parsed = JSON.parse(text) as CycleInsight;
 
+    // Recompute days_away from likely_day — never trust Claude's arithmetic
+    const recomputedForecast = parsed.symptom_forecast
+      ? {
+          upcoming: parsed.symptom_forecast.upcoming
+            .map(item => ({ ...item, days_away: item.likely_day - cycleDay }))
+            .filter(item => item.days_away >= 0 && item.days_away <= 14),
+        }
+      : null;
+
     // Ensure computed fields match server-side values
     insight = {
       ...parsed,
       cycle_day: cycleDay,
       phase,
       days_until_next_phase: daysLeft,
+      symptom_forecast: recomputedForecast?.upcoming.length ? recomputedForecast : null,
       transition_briefing: {
         ...parsed.transition_briefing,
         arriving_in_days: daysLeft,
@@ -143,12 +166,21 @@ export const GET = async (request: Request): Promise<Response> => {
     const stale = await getLatestCachedInsight(supabase, user.id);
     if (stale) {
       const freshDay = computeCycleDay(latestCycle.period_start, today);
-      const freshDaysLeft = daysUntilNextPhase(freshDay);
+      const avgLen = computeAvgCycleInterval(cycles.map(c => c.period_start));
+      const freshDaysLeft = daysUntilNextPhase(freshDay, avgLen);
+      const recomputedForecast = stale.symptom_forecast
+        ? {
+            upcoming: stale.symptom_forecast.upcoming
+              .map(item => ({ ...item, days_away: item.likely_day - freshDay }))
+              .filter(item => item.days_away >= 0 && item.days_away <= 14),
+          }
+        : null;
       return Response.json({
         ...stale,
         cycle_day: freshDay,
         phase: computePhase(freshDay),
         days_until_next_phase: freshDaysLeft,
+        symptom_forecast: recomputedForecast?.upcoming.length ? recomputedForecast : null,
         transition_briefing: {
           ...stale.transition_briefing,
           arriving_in_days: freshDaysLeft,
