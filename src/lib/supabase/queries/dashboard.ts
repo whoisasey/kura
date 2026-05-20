@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export const getTodayPrediction = async (userId: string) => {
   const supabase = createClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const { data, error } = await supabase
     .from("predictions")
@@ -32,7 +32,7 @@ export const getLatestCycle = async (userId: string) => {
 
 export const getTodayEntry = async (userId: string) => {
   const supabase = createClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const { data, error } = await supabase
     .from("journal_entries")

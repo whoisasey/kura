@@ -33,34 +33,37 @@ const CyclePage = () => {
     const load = async () => {
       setLoading(true);
 
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        const localDate = new Date().toLocaleDateString("en-CA");
+        const [insightRes, cycle, last6] = await Promise.all([
+          fetch(`/api/cycle-insight?date=${localDate}`, { cache: "no-store" }).then((r) => r.json()),
+          getLatestCycle(supabase, user.id),
+          getLast6Cycles(supabase, user.id),
+        ]);
+
+        if (insightRes.noData) {
+          setNoData(true);
+          setInsight(null);
+        } else if (!insightRes.error) {
+          setNoData(false);
+          setInsight(insightRes as CycleInsight);
+        }
+
+        setLatestCycle(cycle);
+        setCycles(last6);
+        setPredictedNextPeriod(computePredictedNextPeriod(last6.map((c) => c.period_start)));
+      } finally {
+        setLoading(false);
       }
-
-      const localDate = new Date().toLocaleDateString("en-CA");
-      const [insightRes, cycle, last6] = await Promise.all([
-        fetch(`/api/cycle-insight?date=${localDate}`).then((r) => r.json()),
-        getLatestCycle(supabase, user.id),
-        getLast6Cycles(supabase, user.id),
-      ]);
-
-      if (insightRes.noData) {
-        setNoData(true);
-        setInsight(null);
-      } else if (!insightRes.error) {
-        setNoData(false);
-        setInsight(insightRes as CycleInsight);
-      }
-
-      setLatestCycle(cycle);
-      setCycles(last6);
-      setPredictedNextPeriod(computePredictedNextPeriod(last6.map((c) => c.period_start)));
-      setLoading(false);
     };
 
     load();

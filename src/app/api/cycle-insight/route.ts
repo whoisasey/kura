@@ -11,6 +11,8 @@ const anthropic = new Anthropic();
 
 const noCache = { headers: { "Cache-Control": "no-store" } };
 
+export const maxDuration = 60;
+
 export const GET = async (request: Request): Promise<Response> => {
   const supabase = await createClient();
 
@@ -106,12 +108,15 @@ export const GET = async (request: Request): Promise<Response> => {
   let insight: CycleInsight;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1536,
-      system: CYCLE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    });
+    const message = await anthropic.messages.create(
+      {
+        model: "claude-sonnet-4-6",
+        max_tokens: 1536,
+        system: CYCLE_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
+      },
+      process.env.NODE_ENV === "production" ? { timeout: 25000 } : undefined
+    );
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
     const text = raw
@@ -134,9 +139,22 @@ export const GET = async (request: Request): Promise<Response> => {
   } catch (err) {
     console.error("[cycle-insight] Claude call failed:", err);
 
-    // Fallback: return last cached insight regardless of date
+    // Fallback: return last cached insight regardless of date, with recomputed positional fields
     const stale = await getLatestCachedInsight(supabase, user.id);
-    if (stale) return Response.json(stale, noCache);
+    if (stale) {
+      const freshDay = computeCycleDay(latestCycle.period_start, today);
+      const freshDaysLeft = daysUntilNextPhase(freshDay);
+      return Response.json({
+        ...stale,
+        cycle_day: freshDay,
+        phase: computePhase(freshDay),
+        days_until_next_phase: freshDaysLeft,
+        transition_briefing: {
+          ...stale.transition_briefing,
+          arriving_in_days: freshDaysLeft,
+        },
+      }, noCache);
+    }
 
     return Response.json({ error: "insight_failed" }, { status: 500, ...noCache });
   }
