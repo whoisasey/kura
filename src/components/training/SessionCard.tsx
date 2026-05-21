@@ -25,22 +25,34 @@ interface SessionCardProps {
   isToday?: boolean;
   onAiCheckIn?: () => void;
   showAiButton?: boolean;
+  isSelected?: boolean;
+  onClick?: () => void;
 }
 
-const SessionCard = ({ session, isToday, onAiCheckIn, showAiButton }: SessionCardProps) => {
+const SessionCard = ({ session, isToday, onAiCheckIn, showAiButton, isSelected, onClick }: SessionCardProps) => {
   const isRest = session.type === 'rest';
   const color = SESSION_COLORS[session.type] ?? "text.primary";
 
   return (
     <Box
+      onClick={onClick}
       sx={{
         borderRadius: 3,
         border: "1.5px solid",
-        borderColor: isToday ? color : "divider",
-        bgcolor: isToday ? SESSION_BG[session.type] ?? "action.hover" : "background.paper",
+        borderColor: isSelected ? color : isToday ? color : "divider",
+        bgcolor: isSelected
+          ? SESSION_BG[session.type] ?? "action.hover"
+          : isToday
+          ? SESSION_BG[session.type] ?? "action.hover"
+          : "background.paper",
         p: 2,
         position: "relative",
         opacity: isRest ? 0.6 : 1,
+        cursor: onClick ? "pointer" : "default",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+        ...(onClick && {
+          "&:hover": { boxShadow: 2 },
+        }),
       }}
     >
       {isToday && (

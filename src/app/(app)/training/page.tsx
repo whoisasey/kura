@@ -32,7 +32,7 @@ const TrainingPage = () => {
   const [refresh, setRefresh] = useState(0);
   const [viewWeekIndex, setViewWeekIndex] = useState<number>(0);
   const [seeding, setSeeding] = useState(false);
-  const [showAI, setShowAI] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<PlannedSession | null>(null);
   const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
   const [cycleDay, setCycleDay] = useState<number | undefined>();
 
@@ -191,16 +191,17 @@ const TrainingPage = () => {
             session={todaySession}
             isToday
             showAiButton
-            onAiCheckIn={() => setShowAI(true)}
+            isSelected={selectedSession?.dayOfWeek === todaySession.dayOfWeek}
+            onAiCheckIn={() => setSelectedSession(s => s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession)}
+            onClick={() => setSelectedSession(s => s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession)}
           />
-          {showAI && (
-            <Box mt={2}>
-              <AISuggestionPanel
-                session={todaySession}
-                cyclePhase={cyclePhase}
-                cycleDay={cycleDay}
-              />
-            </Box>
+          {selectedSession?.dayOfWeek === todaySession.dayOfWeek && (
+            <AISuggestionPanel
+              key={todaySession.dayOfWeek}
+              session={todaySession}
+              cyclePhase={cyclePhase}
+              cycleDay={cycleDay}
+            />
           )}
         </Box>
       )}
@@ -209,7 +210,7 @@ const TrainingPage = () => {
 
       {/* Week selector */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-        <IconButton size="small" onClick={() => setViewWeekIndex(v => v - 1)} disabled={!canGoPrev}>
+        <IconButton size="small" onClick={() => { setViewWeekIndex(v => v - 1); setSelectedSession(null); }} disabled={!canGoPrev}>
           <ArrowBackIosNewRoundedIcon fontSize="small" />
         </IconButton>
         <Typography variant="subtitle2" fontWeight={600}>
@@ -217,7 +218,7 @@ const TrainingPage = () => {
           {currentWeek?.weeklyKm ? ` · ${currentWeek.weeklyKm} km` : ''}
           {isCurrentWeek ? ' (current)' : ''}
         </Typography>
-        <IconButton size="small" onClick={() => setViewWeekIndex(v => v + 1)} disabled={!canGoNext}>
+        <IconButton size="small" onClick={() => { setViewWeekIndex(v => v + 1); setSelectedSession(null); }} disabled={!canGoNext}>
           <ArrowForwardIosRoundedIcon fontSize="small" />
         </IconButton>
       </Stack>
@@ -225,7 +226,15 @@ const TrainingPage = () => {
       {/* Week calendar strip */}
       {currentWeek && (
         <Box mb={3}>
-          <WeekCalendar sessions={currentWeek.sessions} todayDow={isCurrentWeek ? todayDow : -1} />
+          <WeekCalendar
+            sessions={currentWeek.sessions}
+            todayDow={isCurrentWeek ? todayDow : -1}
+            selectedDow={selectedSession?.dayOfWeek}
+            onSelectDay={(dow) => {
+              const s = currentWeek.sessions.find(s => s.dayOfWeek === dow) ?? null;
+              setSelectedSession(prev => prev?.dayOfWeek === dow ? null : s);
+            }}
+          />
         </Box>
       )}
 
@@ -234,13 +243,27 @@ const TrainingPage = () => {
         <Stack gap={1.5}>
           {currentWeek.sessions
             .filter(s => s.type !== 'rest')
-            .map(s => (
-              <SessionCard
-                key={s.dayOfWeek}
-                session={s}
-                isToday={isCurrentWeek && s.dayOfWeek === todayDow}
-              />
-            ))}
+            .map(s => {
+              const isSelected = selectedSession?.dayOfWeek === s.dayOfWeek;
+              return (
+                <Box key={s.dayOfWeek}>
+                  <SessionCard
+                    session={s}
+                    isToday={isCurrentWeek && s.dayOfWeek === todayDow}
+                    isSelected={isSelected}
+                    onClick={() => setSelectedSession(isSelected ? null : s)}
+                  />
+                  {isSelected && (
+                    <AISuggestionPanel
+                      key={s.dayOfWeek}
+                      session={s}
+                      cyclePhase={cyclePhase}
+                      cycleDay={cycleDay}
+                    />
+                  )}
+                </Box>
+              );
+            })}
         </Stack>
       )}
     </Box>

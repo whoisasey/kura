@@ -101,7 +101,11 @@ export const POST = async (request: Request): Promise<Response> => {
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "")
     .trim();
-  const suggestion = JSON.parse(text) as AISuggestion;
 
-  return Response.json(suggestion);
+  try {
+    const suggestion = JSON.parse(text) as AISuggestion;
+    return Response.json(suggestion);
+  } catch {
+    return Response.json({ error: "Failed to parse AI response" }, { status: 500 });
+  }
 };

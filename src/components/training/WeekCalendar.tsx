@@ -17,9 +17,11 @@ const SESSION_COLORS: Record<string, string> = {
 interface WeekCalendarProps {
   sessions: PlannedSession[];
   todayDow: number;
+  selectedDow?: number;
+  onSelectDay?: (dow: number) => void;
 }
 
-const WeekCalendar = ({ sessions, todayDow }: WeekCalendarProps) => {
+const WeekCalendar = ({ sessions, todayDow, selectedDow, onSelectDay }: WeekCalendarProps) => {
   const sessionByDay = sessions.reduce<Record<number, PlannedSession>>((acc, s) => {
     acc[s.dayOfWeek] = s;
     return acc;
@@ -31,15 +33,24 @@ const WeekCalendar = ({ sessions, todayDow }: WeekCalendarProps) => {
         const session = sessionByDay[i];
         const isToday = i === todayDow;
         const isRest = !session || session.type === 'rest';
+        const isSelected = i === selectedDow;
         const dotColor = session ? SESSION_COLORS[session.type] : "transparent";
+        const sessionColor = session ? SESSION_COLORS[session.type] : "divider";
 
         return (
-          <Stack key={i} alignItems="center" gap={0.5} flex={1}>
+          <Stack
+            key={i}
+            alignItems="center"
+            gap={0.5}
+            flex={1}
+            onClick={() => !isRest && onSelectDay?.(i)}
+            sx={{ cursor: !isRest && onSelectDay ? "pointer" : "default" }}
+          >
             <Typography
               variant="caption"
               sx={{
-                fontWeight: isToday ? 700 : 400,
-                color: isToday ? "primary.main" : "text.secondary",
+                fontWeight: isToday || isSelected ? 700 : 400,
+                color: isSelected ? sessionColor : isToday ? "primary.main" : "text.secondary",
                 fontSize: "0.7rem",
               }}
             >
@@ -51,13 +62,14 @@ const WeekCalendar = ({ sessions, todayDow }: WeekCalendarProps) => {
                 height: 36,
                 borderRadius: "50%",
                 border: "1.5px solid",
-                borderColor: isToday ? "primary.main" : "divider",
-                bgcolor: isToday ? "primary.main" : "background.paper",
+                borderColor: isSelected ? sessionColor : isToday ? "primary.main" : "divider",
+                bgcolor: isSelected ? sessionColor : isToday ? "primary.main" : "background.paper",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "column",
                 gap: "3px",
+                transition: "border-color 0.15s, background-color 0.15s",
               }}
             >
               {!isRest && (
@@ -66,7 +78,7 @@ const WeekCalendar = ({ sessions, todayDow }: WeekCalendarProps) => {
                     width: 7,
                     height: 7,
                     borderRadius: "50%",
-                    bgcolor: isToday ? "background.paper" : dotColor,
+                    bgcolor: isSelected || isToday ? "background.paper" : dotColor,
                   }}
                 />
               )}
