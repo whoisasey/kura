@@ -21,6 +21,7 @@ import WeekCalendar from "@/components/training/WeekCalendar";
 import { createClient } from "@/lib/supabase/client";
 import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
 import { runLongerPlan } from "@/lib/training/seedData";
+import { formatWeekRange } from "@/lib/training/formatWeekRange";
 import type { TrainingPlan, PlannedSession } from "@/types/training";
 import type { CyclePhase } from "@/types/training";
 import { useRouter } from "next/navigation";
@@ -150,19 +151,24 @@ const TrainingPage = () => {
           </Button>
           <Button
             component={Link}
-            href="/training/import"
+            href="/training/edit"
             size="small"
             sx={{ textTransform: "none", fontSize: "0.75rem" }}
           >
-            Import
+            Edit plan
           </Button>
         </Stack>
       </Stack>
 
-      <Stack direction="row" alignItems="center" gap={1} mb={1.5}>
+      <Stack direction="row" alignItems="center" gap={1} mb={1.5} flexWrap="wrap">
         <Typography variant="caption" color="text.secondary">
           Week {plan.currentWeek} of {plan.totalWeeks}
         </Typography>
+        {currentWeek?.weekStartDate && (
+          <Typography variant="caption" color="text.secondary">
+            · {formatWeekRange(currentWeek.weekStartDate)}
+          </Typography>
+        )}
         {currentWeek?.phase && (
           <Typography variant="caption" color="primary.main" fontWeight={600}>
             · {currentWeek.phase}
@@ -213,11 +219,18 @@ const TrainingPage = () => {
         <IconButton size="small" onClick={() => { setViewWeekIndex(v => v - 1); setSelectedSession(null); }} disabled={!canGoPrev}>
           <ArrowBackIosNewRoundedIcon fontSize="small" />
         </IconButton>
-        <Typography variant="subtitle2" fontWeight={600}>
-          Week {currentWeek?.weekNumber}
-          {currentWeek?.weeklyKm ? ` · ${currentWeek.weeklyKm} km` : ''}
-          {isCurrentWeek ? ' (current)' : ''}
-        </Typography>
+        <Box textAlign="center">
+          <Typography variant="subtitle2" fontWeight={600}>
+            Week {currentWeek?.weekNumber}
+            {currentWeek?.weeklyKm ? ` · ${currentWeek.weeklyKm} km` : ''}
+            {isCurrentWeek ? ' (current)' : ''}
+          </Typography>
+          {currentWeek?.weekStartDate && (
+            <Typography variant="caption" color="text.secondary" display="block">
+              {formatWeekRange(currentWeek.weekStartDate)}
+            </Typography>
+          )}
+        </Box>
         <IconButton size="small" onClick={() => { setViewWeekIndex(v => v + 1); setSelectedSession(null); }} disabled={!canGoNext}>
           <ArrowForwardIosRoundedIcon fontSize="small" />
         </IconButton>

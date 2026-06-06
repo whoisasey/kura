@@ -1,7 +1,8 @@
 "use client";
 
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import type { AISuggestion, PlannedSession } from "@/types/training";
 import type { CyclePhase } from "@/types/training";
 
@@ -45,42 +46,13 @@ const AISuggestionPanel = ({ session, cyclePhase, cycleDay }: AISuggestionPanelP
         body: JSON.stringify({ session, cyclePhase, cycleDay }),
       });
       if (!res.ok) throw new Error("Request failed");
-      const data = await res.json() as AISuggestion;
-      setSuggestion(data);
+      setSuggestion(await res.json() as AISuggestion);
     } catch {
       setError("Couldn't generate a suggestion — try again.");
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      setSuggestion(null);
-      try {
-        const res = await fetch("/api/training/suggest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session, cyclePhase, cycleDay }),
-        });
-        if (!cancelled) {
-          if (!res.ok) throw new Error("Request failed");
-          setSuggestion(await res.json() as AISuggestion);
-        }
-      } catch {
-        if (!cancelled) setError("Couldn't generate a suggestion — try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  // session.dayOfWeek is stable per panel instance (key prop resets on change)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const phaseLabel = cyclePhase ? PHASE_LABELS[cyclePhase] ?? cyclePhase : null;
 
@@ -95,12 +67,25 @@ const AISuggestionPanel = ({ session, cyclePhase, cycleDay }: AISuggestionPanelP
         p: 2.5,
       }}
     >
-      <Stack direction="row" alignItems="center" gap={1} mb={1.5} flexWrap="wrap">
+      <Stack direction="row" alignItems="center" gap={1} mb={suggestion || loading || error ? 1.5 : 0} flexWrap="wrap">
         <Typography variant="subtitle2" fontWeight={600}>AI Suggestion</Typography>
         {phaseLabel && (
           <Chip label={phaseLabel} size="small" variant="outlined" sx={{ fontSize: "0.7rem" }} />
         )}
       </Stack>
+
+      {/* Idle — no suggestion yet */}
+      {!loading && !suggestion && !error && (
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AutoAwesomeRoundedIcon fontSize="small" />}
+          onClick={fetchSuggestion}
+          sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.8rem" }}
+        >
+          Get suggestion
+        </Button>
+      )}
 
       {loading && (
         <Stack alignItems="center" py={2} gap={1}>

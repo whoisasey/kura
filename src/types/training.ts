@@ -18,6 +18,7 @@ export interface TrainingWeek {
   isDeload?: boolean;
   sessions: PlannedSession[];
   weeklyKm?: number;
+  weekStartDate?: string; // ISO date of Monday, e.g. "2026-06-02"
 }
 
 export interface TrainingPlan {
