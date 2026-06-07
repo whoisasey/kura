@@ -350,9 +350,11 @@ const EditPlanPage = () => {
       if (result) {
         setSaved(true);
       } else {
+        console.error("upsertPlan returned null — likely a Supabase RLS or schema error");
         setSaveError(true);
       }
-    } catch {
+    } catch (err) {
+      console.error("handleSave threw:", err);
       setSaveError(true);
     } finally {
       setSaving(false);
@@ -374,7 +376,7 @@ const EditPlanPage = () => {
   const canGoNext = viewWeekIndex < editedWeeks.length - 1;
 
   return (
-    <Box p={3} pb={12}>
+    <Box p={3} pb={22}>
       {/* Header */}
       <Stack direction="row" alignItems="center" gap={1} mb={2.5}>
         <IconButton size="small" onClick={() => router.push("/training")} sx={{ ml: -0.5 }}>
@@ -452,7 +454,6 @@ const EditPlanPage = () => {
         onClose={(_, reason) => {
           if (reason === "clickaway") return;
           setSaved(false);
-          router.push("/training");
         }}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
@@ -472,13 +473,14 @@ const EditPlanPage = () => {
         </Alert>
       </Snackbar>
 
-      {/* Sticky save bar */}
+      {/* Sticky save bar — sits above the 56px BottomNavigation */}
       <Box
         sx={{
           position: "fixed",
-          bottom: 0,
+          bottom: "calc(56px + env(safe-area-inset-bottom))",
           left: 0,
           right: 0,
+          zIndex: 200,
           p: 2,
           bgcolor: "background.paper",
           borderTop: "1px solid",
