@@ -26,33 +26,30 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSwappingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
-import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
-import DragHandleRoundedIcon from "@mui/icons-material/DragHandleRounded";
-import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
-import { formatWeekRange } from "@/lib/training/formatWeekRange";
 import type { PlannedSession, SessionType, TrainingPlan, TrainingWeek } from "@/types/training";
+import { SortableContext, rectSwappingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
+import { useEffect, useState } from "react";
+
+import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
+import { CSS } from "@dnd-kit/utilities";
+import DragHandleRoundedIcon from "@mui/icons-material/DragHandleRounded";
+import { createClient } from "@/lib/supabase/client";
+import { formatWeekRange } from "@/lib/training/formatWeekRange";
+import { useRouter } from "next/navigation";
 
 // Display order Sun → Sat (matches WeekCalendar)
 const DISPLAY_DOW = [0, 1, 2, 3, 4, 5, 6];
 const DOW_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SESSION_TYPES: SessionType[] = ["run", "tempo", "heavy", "unilateral", "rest"];
+const SESSION_TYPES: SessionType[] = ["run", "tempo", "heavy", "yoga", "unilateral", "rest"];
 const TYPE_COLOR: Record<SessionType, "primary" | "warning" | "secondary" | "info" | "default"> = {
   run: "primary",
   tempo: "warning",
   heavy: "secondary",
   unilateral: "info",
+  yoga: "info",
   rest: "default",
 };
 
@@ -73,14 +70,12 @@ const getSessions = (slots: Slot[]): PlannedSession[] =>
 
 // ── SortableSlot ─────────────────────────────────────────────────────────────
 
-// weekStartDate is Monday; offset by position to get each day's date
+// weekStartDate is Sunday; displayIdx 0=Sun … 6=Sat, so offset is just displayIdx
 const slotDate = (weekStartDate: string | undefined, displayIdx: number): string | null => {
   if (!weekStartDate) return null;
-  const mon = new Date(`${weekStartDate}T00:00:00`);
-  // DISPLAY_DOW = [0,1,2,3,4,5,6] → Sun is at index 0, offset = 6; Mon is at index 1, offset = 0
-  const offset = (displayIdx + 6) % 7;
-  mon.setDate(mon.getDate() + offset);
-  return mon.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const start = new Date(`${weekStartDate}T00:00:00`);
+  start.setDate(start.getDate() + displayIdx);
+  return start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 type SortableSlotProps = {
@@ -240,9 +235,7 @@ const SortableSlot = ({ slot, displayIdx, weekStartDate, isExpanded, onToggle, o
                       size="small"
                       type="number"
                       value={session?.distanceKm ?? ""}
-                      onChange={(e) =>
-                        onUpdate({ distanceKm: e.target.value ? Number(e.target.value) : undefined })
-                      }
+                      onChange={(e) => onUpdate({ distanceKm: e.target.value ? Number(e.target.value) : undefined })}
                       placeholder="optional"
                       sx={{ flex: 1 }}
                       inputProps={{ style: { fontSize: "0.8rem" }, min: 0, step: 0.5 }}
@@ -282,11 +275,19 @@ const EditPlanPage = () => {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
       const activePlan = await getActivePlan(supabase, user.id);
-      if (!activePlan) { router.push("/training"); return; }
+      if (!activePlan) {
+        router.push("/training");
+        return;
+      }
 
       setPlan(activePlan);
       setPlanName(activePlan.name);
@@ -343,8 +344,13 @@ const EditPlanPage = () => {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
       const finalPlan: TrainingPlan = { ...plan, name: planName, weeks: editedWeeks };
       const result = await upsertPlan(supabase, user.id, finalPlan, JSON.stringify(finalPlan, null, 2), "json");
       if (result) {
@@ -465,7 +471,10 @@ const EditPlanPage = () => {
       <Snackbar
         open={saveError}
         autoHideDuration={3000}
-        onClose={(_, reason) => { if (reason === "clickaway") return; setSaveError(false); }}
+        onClose={(_, reason) => {
+          if (reason === "clickaway") return;
+          setSaveError(false);
+        }}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity="error" variant="filled" sx={{ width: "100%" }}>

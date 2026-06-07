@@ -1,5 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TrainingPlan } from "@/types/training";
+import type { TrainingPlan, TrainingWeek } from "@/types/training";
+
+// Derive current week from today's date vs each week's Monday start date.
+// Falls back to the DB-stored value when weekStartDate is absent.
+const computeCurrentWeek = (weeks: TrainingWeek[], fallback: number): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const week of weeks) {
+    if (!week.weekStartDate) continue;
+    const start = new Date(`${week.weekStartDate}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    if (today >= start && today <= end) return week.weekNumber;
+  }
+
+  // Outside all dated weeks — return fallback from DB
+  return fallback;
+};
 
 export const getActivePlan = async (
   supabase: SupabaseClient,
@@ -15,13 +33,14 @@ export const getActivePlan = async (
 
   if (error || !data) return null;
 
+  const weeks: TrainingWeek[] = data.plan_data.weeks ?? [];
   return {
     id: data.id,
     name: data.name,
     description: data.description,
     totalWeeks: data.total_weeks,
-    currentWeek: data.current_week,
-    weeks: data.plan_data.weeks ?? [],
+    currentWeek: computeCurrentWeek(weeks, data.current_week),
+    weeks,
   };
 };
 

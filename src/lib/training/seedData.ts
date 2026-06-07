@@ -10,7 +10,7 @@ export const runLongerPlan: TrainingPlan = {
       weekNumber: 3,
       phase: "Build 1",
       weeklyKm: 7,
-      weekStartDate: "2026-05-12",
+      weekStartDate: "2026-05-10",
       sessions: [
         { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "Full body compound" },
         { dayOfWeek: 1, type: "rest", label: "Rest" },
@@ -24,7 +24,7 @@ export const runLongerPlan: TrainingPlan = {
     {
       weekNumber: 4,
       weeklyKm: 7.4,
-      weekStartDate: "2026-05-19",
+      weekStartDate: "2026-05-17",
       sessions: [
         { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "Full body compound" },
         { dayOfWeek: 1, type: "rest", label: "Rest" },
@@ -40,7 +40,7 @@ export const runLongerPlan: TrainingPlan = {
       phase: "Deload",
       isDeload: true,
       weeklyKm: 3.5,
-      weekStartDate: "2026-05-26",
+      weekStartDate: "2026-05-24",
       sessions: [
         { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "−15% load" },
         { dayOfWeek: 1, type: "rest", label: "Rest" },
@@ -55,7 +55,7 @@ export const runLongerPlan: TrainingPlan = {
       weekNumber: 6,
       phase: "Build 2",
       weeklyKm: 9.3,
-      weekStartDate: "2026-06-02",
+      weekStartDate: "2026-05-31",
       sessions: [
         // { dayOfWeek: 0, type: "heavy", label: "Heavy Lift" },
         // { dayOfWeek: 1, type: "rest", label: "Rest" },
@@ -70,7 +70,7 @@ export const runLongerPlan: TrainingPlan = {
       weekNumber: 7,
       phase: "Luteal — conservative",
       weeklyKm: 9,
-      weekStartDate: "2026-06-09",
+      weekStartDate: "2026-06-07",
       sessions: [
         { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "−10% load" },
         { dayOfWeek: 1, type: "rest", label: "Rest" },
@@ -84,7 +84,7 @@ export const runLongerPlan: TrainingPlan = {
     {
       weekNumber: 8,
       weeklyKm: 10,
-      weekStartDate: "2026-06-16",
+      weekStartDate: "2026-06-14",
       sessions: [
         { dayOfWeek: 0, type: "heavy", label: "Heavy Lift", sub: "Full body compound" },
         { dayOfWeek: 1, type: "rest", label: "Rest" },

@@ -1,6 +1,6 @@
-export type SessionType = 'run' | 'tempo' | 'heavy' | 'unilateral' | 'rest';
-export type SessionStatus = 'scheduled' | 'completed' | 'skipped' | 'modified';
-export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
+export type SessionType = "run" | "tempo" | "heavy" | "yoga" | "unilateral" | "rest";
+export type SessionStatus = "scheduled" | "completed" | "skipped" | "modified";
+export type CyclePhase = "menstrual" | "follicular" | "ovulatory" | "luteal";
 
 export interface PlannedSession {
   dayOfWeek: number;
@@ -32,6 +32,6 @@ export interface TrainingPlan {
 
 export interface AISuggestion {
   suggestionText: string;
-  suggestionType: 'reduce_load' | 'swap_session' | 'add_rest' | 'increase_intensity' | 'general';
+  suggestionType: "reduce_load" | "swap_session" | "add_rest" | "increase_intensity" | "general";
   reasoning: string;
 }
