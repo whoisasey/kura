@@ -113,13 +113,17 @@ export const GET = async (request: Request): Promise<Response> => {
         model: "claude-sonnet-4-6",
         max_tokens: 1536,
         system: CYCLE_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
+        messages: [
+          { role: "user", content: userMessage },
+          { role: "assistant", content: "{" },
+        ],
       },
       process.env.NODE_ENV === "production" ? { timeout: 25000 } : undefined
     );
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
-    const text = raw
+    // Prepend the prefill character we injected, then strip any accidental markdown fences
+    const text = ("{" + raw)
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/, "")
       .trim();
