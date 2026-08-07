@@ -84,11 +84,14 @@ export const POST = async (): Promise<Response> => {
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "user", content: prompt },
+        { role: "assistant", content: "{" },
+      ],
     })
 
-    const text = message.content[0].type === "text" ? message.content[0].text : ""
-    parsed = JSON.parse(text) as PredictionResult
+    const raw = message.content[0].type === "text" ? message.content[0].text : ""
+    parsed = JSON.parse("{" + raw) as PredictionResult
   } catch (err) {
     console.error("[predict] Claude call failed:", err)
     return Response.json({ error: "prediction_failed" }, { status: 500 })
