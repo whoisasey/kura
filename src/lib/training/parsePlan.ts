@@ -1,6 +1,6 @@
 import type { TrainingPlan, TrainingWeek, PlannedSession, SessionType } from "@/types/training";
 
-const SESSION_TYPE_VALUES: SessionType[] = ['run', 'tempo', 'heavy', 'unilateral', 'rest'];
+const SESSION_TYPE_VALUES: SessionType[] = ['run', 'tempo', 'heavy', 'unilateral', 'rest', 'physio', 'resistance', 'pilates', 'yoga'];
 
 const validatePlan = (raw: unknown): TrainingPlan => {
   if (!raw || typeof raw !== 'object') throw new Error("Plan must be an object");

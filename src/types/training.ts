@@ -1,6 +1,6 @@
 export type SessionType = "run" | "tempo" | "heavy" | "yoga" | "unilateral" | "rest" | "physio" | "resistance" | "pilates";
 export type SessionStatus = "scheduled" | "completed" | "skipped" | "modified";
-export type CyclePhase = "menstrual" | "follicular" | "ovulatory" | "luteal";
+export type { CyclePhase } from "@/lib/cycle/phaseCalculator";
 
 export interface PlannedSession {
   dayOfWeek: number;

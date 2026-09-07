@@ -8,6 +8,7 @@ import {
   CircularProgress,
   Collapse,
   Divider,
+  IconButton,
   List,
   ListItem,
   Stack,
@@ -24,6 +25,8 @@ import {
 import { useEffect, useState } from "react";
 
 import AISuggestionPanel from "@/components/training/AISuggestionPanel";
+import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
+import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import type { BlockDay } from "@/lib/training/cycleBlock";
 import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
 import type { CyclePhase } from "@/types/training";
@@ -168,6 +171,7 @@ const TrainingPage = () => {
   const [seeding, setSeeding] = useState(false);
   const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
   const [cycleDay, setCycleDay] = useState<number | undefined>();
+  const [viewWeek, setViewWeek] = useState<1 | 2 | 3 | 4>(1);
 
   const todayDow = new Date().getDay();
   const todayStr = new Date().toLocaleDateString("en-CA");
@@ -195,7 +199,10 @@ const TrainingPage = () => {
       if (cycleRes.data) {
         setCyclePhase((cycleRes.data.phase as CyclePhase) ?? undefined);
         const derived = computeCycleDay(cycleRes.data.period_start);
-        setCycleDay(derived > 0 ? derived : undefined);
+        if (derived > 0) {
+          setCycleDay(derived);
+          setViewWeek(getCycleBlockWeek(derived));
+        }
       }
 
       setLoading(false);
@@ -226,6 +233,10 @@ const TrainingPage = () => {
   const transitionMsg = cycleDay != null ? getPhaseTransitionMessage(cycleDay) : null;
   const daysUntilNext = cycleDay != null ? getDaysUntilNextPhase(cycleDay) : null;
   const nextPhase = cycleDay != null ? getNextPhaseName(cycleDay) : null;
+
+  // The week being viewed (may differ from current block week)
+  const viewWeekData = CYCLE_BLOCK[viewWeek - 1];
+  const isViewingCurrentWeek = viewWeek === blockWeekNum;
 
   // No cycle data at all — show empty state
   if (!blockWeekData) {
@@ -284,52 +295,92 @@ const TrainingPage = () => {
         </Stack>
       </Stack>
 
-      {/* Week banner */}
+      {/* Week navigator */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.5}>
-        <Typography variant="subtitle1" fontWeight={700}>
-          Week {blockWeekData.week} — {blockWeekData.phase}
-        </Typography>
-        {blockWeekNum === 3 && (
-          <Chip label="PR window" size="small" color="warning" sx={{ fontSize: "0.7rem" }} />
-        )}
+        <IconButton
+          size="small"
+          onClick={() => setViewWeek((w) => Math.max(1, w - 1) as 1 | 2 | 3 | 4)}
+          disabled={viewWeek === 1}
+        >
+          <ArrowBackIosNewRoundedIcon fontSize="small" />
+        </IconButton>
+
+        <Box textAlign="center" flex={1}>
+          <Stack direction="row" alignItems="center" justifyContent="center" gap={1}>
+            <Typography variant="subtitle1" fontWeight={700}>
+              Week {viewWeekData.week} — {viewWeekData.phase}
+            </Typography>
+            {viewWeek === 3 && (
+              <Chip label="PR window" size="small" color="warning" sx={{ fontSize: "0.7rem" }} />
+            )}
+          </Stack>
+          {!isViewingCurrentWeek && blockWeekNum && (
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ cursor: "pointer", textDecoration: "underline" }}
+              onClick={() => setViewWeek(blockWeekNum)}
+            >
+              Back to current (Week {blockWeekNum})
+            </Typography>
+          )}
+        </Box>
+
+        <IconButton
+          size="small"
+          onClick={() => setViewWeek((w) => Math.min(4, w + 1) as 1 | 2 | 3 | 4)}
+          disabled={viewWeek === 4}
+        >
+          <ArrowForwardIosRoundedIcon fontSize="small" />
+        </IconButton>
       </Stack>
 
-      <Typography variant="body2" color="text.secondary" mb={0.5}>
-        {blockWeekData.intent}
+      <Typography variant="body2" color="text.secondary" mb={0.5} textAlign="center">
+        {viewWeekData.intent}
       </Typography>
 
-      <Typography variant="caption" color="text.disabled">
-        Cycle day {cycleDay}
-        {daysUntilNext != null && daysUntilNext > 0 && (
-          <> · {daysUntilNext} day{daysUntilNext !== 1 ? "s" : ""} until {nextPhase}</>
-        )}
-      </Typography>
+      {isViewingCurrentWeek && (
+        <Typography variant="caption" color="text.disabled" display="block" textAlign="center">
+          Cycle day {cycleDay}
+          {daysUntilNext != null && daysUntilNext > 0 && (
+            <> · {daysUntilNext} day{daysUntilNext !== 1 ? "s" : ""} until {nextPhase}</>
+          )}
+        </Typography>
+      )}
 
       {/* Week progress dots */}
-      <Stack direction="row" gap={0.75} mt={1.25} mb={2}>
-        {[1, 2, 3, 4].map((w) => (
+      <Stack direction="row" gap={0.75} mt={1.25} mb={2} justifyContent="center">
+        {([1, 2, 3, 4] as const).map((w) => (
           <Box
             key={w}
+            onClick={() => setViewWeek(w)}
             sx={{
-              width: w === blockWeekNum ? 20 : 8,
+              width: w === viewWeek ? 20 : 8,
               height: 8,
               borderRadius: 4,
-              bgcolor: w === blockWeekNum ? "primary.main" : w < (blockWeekNum ?? 0) ? "primary.light" : "divider",
+              bgcolor: w === blockWeekNum
+                ? "primary.main"
+                : w === viewWeek
+                ? "action.active"
+                : w < (blockWeekNum ?? 0)
+                ? "primary.light"
+                : "divider",
               transition: "width 0.2s",
+              cursor: "pointer",
             }}
           />
         ))}
       </Stack>
 
-      {transitionMsg && (
+      {isViewingCurrentWeek && transitionMsg && (
         <Alert severity="info" sx={{ mb: 2, borderRadius: 2, fontSize: "0.85rem" }}>
           {transitionMsg}
         </Alert>
       )}
 
-      {blockWeekData.weekNote && !transitionMsg && (
+      {viewWeekData.weekNote && !(isViewingCurrentWeek && transitionMsg) && (
         <Typography variant="caption" color="text.disabled" display="block" mb={2} fontStyle="italic">
-          {blockWeekData.weekNote}
+          {viewWeekData.weekNote}
         </Typography>
       )}
 
@@ -337,11 +388,11 @@ const TrainingPage = () => {
 
       {/* Single unified week list */}
       <Stack gap={1}>
-        {blockWeekData.days.map((day) => (
+        {viewWeekData.days.map((day) => (
           <BlockDayCard
             key={day.dayOfWeek}
             blockDay={day}
-            isToday={day.dayOfWeek === todayDow}
+            isToday={isViewingCurrentWeek && day.dayOfWeek === todayDow}
             cyclePhase={cyclePhase}
             cycleDay={cycleDay}
           />

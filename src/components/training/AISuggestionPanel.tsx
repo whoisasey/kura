@@ -20,7 +20,7 @@ const SUGGESTION_TYPE_META: Record<
 const PHASE_LABELS: Record<string, string> = {
   menstrual:   'Menstrual phase',
   follicular:  'Follicular phase',
-  ovulatory:   'Ovulatory phase',
+  ovulation:   'Ovulation phase',
   luteal:      'Luteal phase',
 };
 

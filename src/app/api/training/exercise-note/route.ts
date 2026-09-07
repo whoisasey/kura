@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { cycleBlockPlan } from "@/lib/training/seedData";
+import { getCycleBlockWeek } from "@/lib/training/getCycleBlockWeek";
 import type { CyclePhase } from "@/lib/cycle/phaseCalculator";
 
 const anthropic = new Anthropic();
@@ -8,7 +9,7 @@ const anthropic = new Anthropic();
 export const maxDuration = 30;
 
 const SYSTEM_PROMPT = `You are a wellness-aware training coach embedded in Kura, a personal health app.
-The user is a 34-year-old woman following an 8-week run-longer training plan with physio-prescribed unilateral work for right glute activation and hip extension.
+The user is a 34-year-old woman following a 4-week cycle-synced training block with physio-prescribed unilateral work for right glute activation and hip extension.
 
 Write 2–3 sentences of specific, practical movement guidance for today's planned session based on her cycle phase and hormonal context.
 
@@ -46,7 +47,9 @@ export const GET = async (request: Request): Promise<Response> => {
   if (cached) return Response.json({ note: cached.suggestion_text });
 
   // Cache miss — build context and call Claude
-  const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek);
+  const parsedCycleDay = cycleDay ? parseInt(cycleDay, 10) : null;
+  const blockWeekNum = parsedCycleDay ? getCycleBlockWeek(parsedCycleDay) : 1;
+  const week = cycleBlockPlan.weeks.find(w => w.weekNumber === blockWeekNum);
   const session = week?.sessions.find(s => s.dayOfWeek === dow);
 
   if (!session || session.type === "rest") {
@@ -66,7 +69,7 @@ export const GET = async (request: Request): Promise<Response> => {
   const sleepStr = journal?.sleep_hours ? `sleep ${journal.sleep_hours}h` : null;
   const journalContext = [moodStr, energyStr, sleepStr].filter(Boolean).join(", ");
 
-  const userMessage = `Training plan: Run Longer, Week ${cycleBlockPlan.currentWeek} of ${cycleBlockPlan.totalWeeks}${week?.phase ? ` (${week.phase})` : ""}
+  const userMessage = `Training block: 4-week cycle-synced, Week ${blockWeekNum} of ${cycleBlockPlan.totalWeeks}${week?.phase ? ` (${week.phase})` : ""}
 Today's session: ${session.label}${session.sub ? ` — ${session.sub}` : ""}${session.distanceKm ? ` · ${session.distanceKm} km` : ""}
 Session type: ${session.type}
 Cycle phase: ${phase}, day ${cycleDay ?? "unknown"}${journalContext ? `\nToday's check-in: ${journalContext}` : ""}

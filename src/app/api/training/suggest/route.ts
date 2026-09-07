@@ -8,7 +8,7 @@ const anthropic = new Anthropic();
 export const maxDuration = 30;
 
 const SYSTEM_PROMPT = `You are a wellness-aware training coach embedded in Kura, a personal health app.
-The user is a 34-year-old woman, 5'3", 140lb, following an 8-week run-longer training plan with physio-prescribed unilateral work for right glute activation and hip extension.
+The user is a 34-year-old woman, 5'3", 140lb, following a 4-week cycle-synced training block with physio-prescribed work for right glute activation and hip extension.
 
 Your role is to suggest MODIFICATIONS (not replacements) to today's planned session based on her cycle phase, how she feels today, and any symptoms she has logged.
 Keep suggestions practical, specific, and grounded in exercise physiology
@@ -58,7 +58,7 @@ export const POST = async (request: Request): Promise<Response> => {
   let symptoms: SymptomRow[] = [];
   if (journal?.id) {
     const { data: symptomRows } = await supabase
-      .from("journal_symptoms")
+      .from("symptoms")
       .select("symptom, severity")
       .eq("journal_entry_id", journal.id);
     symptoms = (symptomRows ?? []) as SymptomRow[];
