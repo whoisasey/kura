@@ -1,4 +1,4 @@
-export type SessionType = "run" | "tempo" | "heavy" | "yoga" | "unilateral" | "rest";
+export type SessionType = "run" | "tempo" | "heavy" | "yoga" | "unilateral" | "rest" | "physio" | "resistance" | "pilates";
 export type SessionStatus = "scheduled" | "completed" | "skipped" | "modified";
 export type CyclePhase = "menstrual" | "follicular" | "ovulatory" | "luteal";
 

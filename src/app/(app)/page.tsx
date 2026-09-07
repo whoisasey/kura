@@ -12,7 +12,7 @@ import EnvBanner from "@/components/env/EnvBanner";
 import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
-import { runLongerPlan } from "@/lib/training/seedData";
+import { cycleBlockPlan } from "@/lib/training/seedData";
 import { useRouter } from "next/navigation";
 
 interface Prediction {
@@ -247,7 +247,7 @@ const DashboardPage = () => {
                   </Typography>
                   {(() => {
                     const todayDow = new Date().getDay();
-                    const week = runLongerPlan.weeks.find(w => w.weekNumber === runLongerPlan.currentWeek);
+                    const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek);
                     const session = week?.sessions.find(s => s.dayOfWeek === todayDow);
                     if (!session || session.type === "rest") return null;
                     return (

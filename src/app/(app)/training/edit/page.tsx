@@ -43,13 +43,16 @@ import { useRouter } from "next/navigation";
 // Display order Sun → Sat (matches WeekCalendar)
 const DISPLAY_DOW = [0, 1, 2, 3, 4, 5, 6];
 const DOW_LABEL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SESSION_TYPES: SessionType[] = ["run", "tempo", "heavy", "yoga", "unilateral", "rest"];
-const TYPE_COLOR: Record<SessionType, "primary" | "warning" | "secondary" | "info" | "default"> = {
+const SESSION_TYPES: SessionType[] = ["run", "tempo", "heavy", "yoga", "unilateral", "physio", "resistance", "pilates", "rest"];
+const TYPE_COLOR: Record<SessionType, "primary" | "warning" | "secondary" | "info" | "default" | "success"> = {
   run: "primary",
   tempo: "warning",
   heavy: "secondary",
   unilateral: "info",
-  yoga: "info",
+  yoga: "success",
+  physio: "success",
+  resistance: "secondary",
+  pilates: "warning",
   rest: "default",
 };
 

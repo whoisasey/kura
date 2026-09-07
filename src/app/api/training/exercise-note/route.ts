@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { runLongerPlan } from "@/lib/training/seedData";
+import { cycleBlockPlan } from "@/lib/training/seedData";
 import type { CyclePhase } from "@/lib/cycle/phaseCalculator";
 
 const anthropic = new Anthropic();
@@ -46,7 +46,7 @@ export const GET = async (request: Request): Promise<Response> => {
   if (cached) return Response.json({ note: cached.suggestion_text });
 
   // Cache miss — build context and call Claude
-  const week = runLongerPlan.weeks.find(w => w.weekNumber === runLongerPlan.currentWeek);
+  const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek);
   const session = week?.sessions.find(s => s.dayOfWeek === dow);
 
   if (!session || session.type === "rest") {
@@ -66,7 +66,7 @@ export const GET = async (request: Request): Promise<Response> => {
   const sleepStr = journal?.sleep_hours ? `sleep ${journal.sleep_hours}h` : null;
   const journalContext = [moodStr, energyStr, sleepStr].filter(Boolean).join(", ");
 
-  const userMessage = `Training plan: Run Longer, Week ${runLongerPlan.currentWeek} of ${runLongerPlan.totalWeeks}${week?.phase ? ` (${week.phase})` : ""}
+  const userMessage = `Training plan: Run Longer, Week ${cycleBlockPlan.currentWeek} of ${cycleBlockPlan.totalWeeks}${week?.phase ? ` (${week.phase})` : ""}
 Today's session: ${session.label}${session.sub ? ` — ${session.sub}` : ""}${session.distanceKm ? ` · ${session.distanceKm} km` : ""}
 Session type: ${session.type}
 Cycle phase: ${phase}, day ${cycleDay ?? "unknown"}${journalContext ? `\nToday's check-in: ${journalContext}` : ""}

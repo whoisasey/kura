@@ -9,6 +9,10 @@ const SESSION_COLORS: Record<string, string> = {
   tempo: "warning.main",
   heavy: "secondary.main",
   unilateral: "info.main",
+  physio: "success.main",
+  resistance: "secondary.main",
+  pilates: "warning.dark",
+  yoga: "success.light",
   rest: "text.disabled",
 };
 
@@ -17,6 +21,10 @@ const SESSION_BG: Record<string, string> = {
   tempo: "warning.50",
   heavy: "secondary.50",
   unilateral: "info.50",
+  physio: "success.50",
+  resistance: "secondary.50",
+  pilates: "warning.50",
+  yoga: "success.50",
   rest: "action.hover",
 };
 

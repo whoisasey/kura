@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import type { CycleInsight } from '@/types/index'
 import type { CyclePhase } from '@/lib/cycle/phaseCalculator'
 import type { PlannedSession, SessionType } from '@/types/training'
-import { runLongerPlan } from '@/lib/training/seedData'
+import { cycleBlockPlan } from '@/lib/training/seedData'
 
 interface ExerciseCardProps {
   insight: CycleInsight | null
@@ -45,7 +45,7 @@ const phaseNote: Record<CyclePhase, Partial<Record<SessionType, string>>> = {
 }
 
 const getSessionForDow = (dow: number): PlannedSession | undefined => {
-  const week = runLongerPlan.weeks.find(w => w.weekNumber === runLongerPlan.currentWeek)
+  const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek)
   return week?.sessions.find(s => s.dayOfWeek === dow)
 }
 
