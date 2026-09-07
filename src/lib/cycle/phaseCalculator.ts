@@ -18,12 +18,11 @@ export const computePhase = (cycleDay: number, avgCycleLength: number = 28): Cyc
   return "luteal";
 };
 
-export const daysUntilNextPhase = (cycleDay: number): number => {
+export const daysUntilNextPhase = (cycleDay: number, cycleLength: number = 28): number => {
   if (cycleDay <= 5) return 5 - cycleDay + 1;
   if (cycleDay <= 13) return 13 - cycleDay + 1;
   if (cycleDay <= 16) return 16 - cycleDay + 1;
-  // luteal ends at day 28 by default
-  return 28 - cycleDay + 1;
+  return Math.max(1, cycleLength - cycleDay + 1);
 };
 
 export const computeAvgCycleInterval = (periodStarts: string[]): number => {

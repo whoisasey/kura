@@ -1,0 +1,104 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { TrainingPlan, TrainingWeek } from "@/types/training";
+
+// Derive current week from today's date vs each week's Monday start date.
+// Falls back to the DB-stored value when weekStartDate is absent.
+const computeCurrentWeek = (weeks: TrainingWeek[], fallback: number): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const week of weeks) {
+    if (!week.weekStartDate) continue;
+    const start = new Date(`${week.weekStartDate}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    if (today >= start && today <= end) return week.weekNumber;
+  }
+
+  // Outside all dated weeks — return fallback from DB
+  return fallback;
+};
+
+export const getActivePlan = async (
+  supabase: SupabaseClient,
+  userId: string
+): Promise<TrainingPlan | null> => {
+  const { data, error } = await supabase
+    .from("training_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const weeks: TrainingWeek[] = data.plan_data.weeks ?? [];
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    totalWeeks: data.total_weeks,
+    currentWeek: computeCurrentWeek(weeks, data.current_week),
+    weeks,
+  };
+};
+
+export const upsertPlan = async (
+  supabase: SupabaseClient,
+  userId: string,
+  plan: TrainingPlan,
+  rawSource: string,
+  sourceFormat: 'json' | 'markdown'
+): Promise<{ id: string } | null> => {
+  // Check for existing active plan
+  const { data: existing } = await supabase
+    .from("training_plans")
+    .select("id, current_week")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const planData = { weeks: plan.weeks };
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("training_plans")
+      .update({
+        name: plan.name,
+        description: plan.description ?? null,
+        total_weeks: plan.totalWeeks,
+        // Preserve current_week from DB unless explicitly set in import
+        current_week: plan.currentWeek ?? existing.current_week,
+        plan_data: planData,
+        raw_source: rawSource,
+        source_format: sourceFormat,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+
+    if (error) return null;
+    return { id: data.id };
+  }
+
+  const { data, error } = await supabase
+    .from("training_plans")
+    .insert({
+      user_id: userId,
+      name: plan.name,
+      description: plan.description ?? null,
+      total_weeks: plan.totalWeeks,
+      current_week: plan.currentWeek,
+      plan_data: planData,
+      raw_source: rawSource,
+      source_format: sourceFormat,
+    })
+    .select("id")
+    .single();
+
+  if (error) return null;
+  return { id: data.id };
+};

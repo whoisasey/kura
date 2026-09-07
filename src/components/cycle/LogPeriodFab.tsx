@@ -20,6 +20,7 @@ import { insertCycle, updateCycleEnd } from "@/lib/supabase/queries/cycles";
 
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
 import { createClient } from "@/lib/supabase/client";
+import { prefetchCycleInsight } from "@/lib/cycle/prefetchInsight";
 import { useState } from "react";
 
 interface LogPeriodFabProps {
@@ -156,6 +157,7 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
 
       setOpen(false);
       onLogged();
+      prefetchCycleInsight();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

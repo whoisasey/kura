@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import { createClient } from "@/lib/supabase/client";
+import { prefetchCycleInsight } from "@/lib/cycle/prefetchInsight";
 import { useRouter } from "next/navigation";
 
 const moods = ["great", "good", "okay", "low", "awful"] as const;
@@ -130,6 +131,7 @@ const JournalPage = () => {
     if (updated) {
       setEntry(updated as JournalEntry);
       setSaved(true);
+      prefetchCycleInsight();
     }
   };
 

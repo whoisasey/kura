@@ -31,9 +31,6 @@ const formatPredictedDate = (dateStr: string): string => {
 
   if (days <= 0) return "around now";
   if (days === 1) return "tomorrow";
-  if (days < 7) return `in ${days} days`;
-  if (days < 14) return `in about a week`;
-
   return `~${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 };
 
