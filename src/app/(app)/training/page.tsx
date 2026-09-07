@@ -16,11 +16,13 @@ import {
 } from "@mui/material";
 import type { PlannedSession, TrainingPlan } from "@/types/training";
 import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
+import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
 import {
   getCycleBlockWeek,
   getDaysUntilNextPhase,
   getNextPhaseName,
   getPhaseTransitionMessage,
+  isPrePeriodDeload,
 } from "@/lib/training/getCycleBlockWeek";
 import { useEffect, useState } from "react";
 
@@ -29,6 +31,7 @@ import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRound
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import type { BlockDay } from "@/lib/training/cycleBlock";
 import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
+import SessionOutcomeLogger from "@/components/training/SessionOutcomeLogger";
 import type { CyclePhase } from "@/types/training";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import Link from "next/link";
@@ -51,9 +54,11 @@ interface BlockDayCardProps {
   isToday: boolean;
   cyclePhase?: CyclePhase;
   cycleDay?: number;
+  showLogger?: boolean;
+  blockWeek?: number;
 }
 
-const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay }: BlockDayCardProps) => {
+const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blockWeek }: BlockDayCardProps) => {
   const [open, setOpen] = useState(isToday);
   const [showAi, setShowAi] = useState(false);
   const dotColor = BLOCK_SESSION_COLORS[blockDay.sessionType] ?? "text.secondary";
@@ -159,6 +164,14 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay }: BlockDayCardP
           </Box>
         </Collapse>
       ) : null}
+
+      {showLogger && cycleDay != null && blockWeek != null && (
+        <SessionOutcomeLogger
+          blockDay={blockDay}
+          cycleDay={cycleDay}
+          blockWeek={blockWeek}
+        />
+      )}
     </Box>
   );
 };
@@ -171,6 +184,7 @@ const TrainingPage = () => {
   const [seeding, setSeeding] = useState(false);
   const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
   const [cycleDay, setCycleDay] = useState<number | undefined>();
+  const [avgCycleLength, setAvgCycleLength] = useState(29);
   const [viewWeek, setViewWeek] = useState<1 | 2 | 3 | 4>(1);
 
   const todayDow = new Date().getDay();
@@ -183,7 +197,7 @@ const TrainingPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      const [activePlan, cycleRes] = await Promise.all([
+      const [activePlan, cycleRes, avgLen] = await Promise.all([
         getActivePlan(supabase, user.id),
         supabase
           .from("cycles")
@@ -192,16 +206,19 @@ const TrainingPage = () => {
           .order("period_start", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        getAvgCycleLength(supabase, user.id),
       ]);
 
       setPlan(activePlan);
+
+      setAvgCycleLength(avgLen);
 
       if (cycleRes.data) {
         setCyclePhase((cycleRes.data.phase as CyclePhase) ?? undefined);
         const derived = computeCycleDay(cycleRes.data.period_start);
         if (derived > 0) {
           setCycleDay(derived);
-          setViewWeek(getCycleBlockWeek(derived));
+          setViewWeek(getCycleBlockWeek(derived, avgLen));
         }
       }
 
@@ -228,11 +245,12 @@ const TrainingPage = () => {
     );
   }
 
-  const blockWeekNum = cycleDay != null ? getCycleBlockWeek(cycleDay) : null;
+  const blockWeekNum = cycleDay != null ? getCycleBlockWeek(cycleDay, avgCycleLength) : null;
   const blockWeekData = blockWeekNum != null ? CYCLE_BLOCK[blockWeekNum - 1] : null;
-  const transitionMsg = cycleDay != null ? getPhaseTransitionMessage(cycleDay) : null;
-  const daysUntilNext = cycleDay != null ? getDaysUntilNextPhase(cycleDay) : null;
-  const nextPhase = cycleDay != null ? getNextPhaseName(cycleDay) : null;
+  const transitionMsg = cycleDay != null ? getPhaseTransitionMessage(cycleDay, avgCycleLength) : null;
+  const daysUntilNext = cycleDay != null ? getDaysUntilNextPhase(cycleDay, avgCycleLength) : null;
+  const nextPhase = cycleDay != null ? getNextPhaseName(cycleDay, avgCycleLength) : null;
+  const prePeriod = cycleDay != null && isPrePeriodDeload(cycleDay, avgCycleLength) && cycleDay > 7;
 
   // The week being viewed (may differ from current block week)
   const viewWeekData = CYCLE_BLOCK[viewWeek - 1];
@@ -308,7 +326,7 @@ const TrainingPage = () => {
         <Box textAlign="center" flex={1}>
           <Stack direction="row" alignItems="center" justifyContent="center" gap={1}>
             <Typography variant="subtitle1" fontWeight={700}>
-              Week {viewWeekData.week} — {viewWeekData.phase}
+              Week {viewWeekData.week} — {isViewingCurrentWeek && prePeriod ? "Late luteal · pre-period deload" : viewWeekData.phase}
             </Typography>
             {viewWeek === 3 && (
               <Chip label="PR window" size="small" color="warning" sx={{ fontSize: "0.7rem" }} />
@@ -395,6 +413,8 @@ const TrainingPage = () => {
             isToday={isViewingCurrentWeek && day.dayOfWeek === todayDow}
             cyclePhase={cyclePhase}
             cycleDay={cycleDay}
+            showLogger={viewWeek === 1 && isViewingCurrentWeek && day.dayOfWeek === todayDow}
+            blockWeek={viewWeek}
           />
         ))}
       </Stack>
