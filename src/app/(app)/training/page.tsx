@@ -15,29 +15,30 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
-
-import AISuggestionPanel from "@/components/training/AISuggestionPanel";
-import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
-import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import Link from "next/link";
-import SessionCard from "@/components/training/SessionCard";
-import WeekCalendar from "@/components/training/WeekCalendar";
-import { createClient } from "@/lib/supabase/client";
+import type { PlannedSession, TrainingPlan } from "@/types/training";
 import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
-import { cycleBlockPlan } from "@/lib/training/seedData";
-import { formatWeekRange } from "@/lib/training/formatWeekRange";
-import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
 import {
   getCycleBlockWeek,
   getDaysUntilNextPhase,
   getNextPhaseName,
   getPhaseTransitionMessage,
 } from "@/lib/training/getCycleBlockWeek";
-import type { TrainingPlan, PlannedSession } from "@/types/training";
-import type { CyclePhase } from "@/types/training";
+import { useEffect, useState } from "react";
+
+import AISuggestionPanel from "@/components/training/AISuggestionPanel";
+import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
+import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import type { BlockDay } from "@/lib/training/cycleBlock";
+import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
+import type { CyclePhase } from "@/types/training";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import Link from "next/link";
+import SessionCard from "@/components/training/SessionCard";
+import WeekCalendar from "@/components/training/WeekCalendar";
+import { computeCycleDay } from "@/lib/cycle/phaseCalculator";
+import { createClient } from "@/lib/supabase/client";
+import { cycleBlockPlan } from "@/lib/training/seedData";
+import { formatWeekRange } from "@/lib/training/formatWeekRange";
 import { useRouter } from "next/navigation";
 
 const BLOCK_SESSION_COLORS: Record<string, string> = {
@@ -70,7 +71,7 @@ const BlockDayCard = ({ blockDay, isToday }: { blockDay: BlockDay; isToday: bool
         justifyContent="space-between"
         px={2}
         py={1.5}
-        onClick={() => blockDay.exercises?.length && setOpen(o => !o)}
+        onClick={() => blockDay.exercises?.length && setOpen((o) => !o)}
         sx={{ cursor: blockDay.exercises?.length ? "pointer" : "default" }}
       >
         <Stack direction="row" alignItems="center" gap={1.25}>
@@ -96,7 +97,9 @@ const BlockDayCard = ({ blockDay, isToday }: { blockDay: BlockDay; isToday: bool
                 />
               )}
               {blockDay.isOptional && (
-                <Typography variant="caption" color="text.disabled">optional</Typography>
+                <Typography variant="caption" color="text.disabled">
+                  optional
+                </Typography>
               )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
@@ -123,7 +126,9 @@ const BlockDayCard = ({ blockDay, isToday }: { blockDay: BlockDay; isToday: bool
             <List dense disablePadding sx={{ "& .MuiListItem-root": { px: 0, py: 0.25 } }}>
               {blockDay.exercises.map((ex, i) => (
                 <ListItem key={i}>
-                  <Typography variant="caption" color="text.secondary">· {ex}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    · {ex}
+                  </Typography>
                 </ListItem>
               ))}
             </List>
@@ -157,23 +162,28 @@ const TrainingPage = () => {
     const load = async () => {
       setLoading(true);
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
 
       const [activePlan, cycleRes] = await Promise.all([
         getActivePlan(supabase, user.id),
         supabase
-          .from("cycle_entries")
-          .select("phase, cycle_day")
+          .from("cycles")
+          .select("phase, period_start")
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
+          .order("period_start", { ascending: false })
           .limit(1)
           .maybeSingle(),
       ]);
 
       if (activePlan) {
         setPlan(activePlan);
-        const currentIdx = activePlan.weeks.findIndex(w => w.weekNumber === activePlan.currentWeek);
+        const currentIdx = activePlan.weeks.findIndex((w) => w.weekNumber === activePlan.currentWeek);
         setViewWeekIndex(currentIdx >= 0 ? currentIdx : 0);
       } else {
         setPlan(null);
@@ -181,7 +191,8 @@ const TrainingPage = () => {
 
       if (cycleRes.data) {
         setCyclePhase((cycleRes.data.phase as CyclePhase) ?? undefined);
-        setCycleDay(cycleRes.data.cycle_day ?? undefined);
+        const derived = computeCycleDay(cycleRes.data.period_start);
+        setCycleDay(derived > 0 ? derived : undefined);
       }
 
       setLoading(false);
@@ -193,12 +204,17 @@ const TrainingPage = () => {
   const handleSeedPlan = async () => {
     setSeeding(true);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
     const raw = JSON.stringify(cycleBlockPlan, null, 2);
-    await upsertPlan(supabase, user.id, cycleBlockPlan, raw, 'json');
+    await upsertPlan(supabase, user.id, cycleBlockPlan, raw, "json");
     setSeeding(false);
-    setRefresh(r => r + 1);
+    setRefresh((r) => r + 1);
   };
 
   if (loading) {
@@ -215,11 +231,13 @@ const TrainingPage = () => {
   const transitionMsg = cycleDay != null ? getPhaseTransitionMessage(cycleDay) : null;
   const daysUntilNext = cycleDay != null ? getDaysUntilNextPhase(cycleDay) : null;
   const nextPhase = cycleDay != null ? getNextPhaseName(cycleDay) : null;
-  const todayCycleDay = blockWeekData?.days.find(d => d.dayOfWeek === todayDow) ?? null;
+  const todayCycleDay = blockWeekData?.days.find((d) => d.dayOfWeek === todayDow) ?? null;
 
   return (
     <Box p={3} pb={4}>
-      <Typography variant="h6" fontWeight={700} mb={2}>Training</Typography>
+      <Typography variant="h6" fontWeight={700} mb={2}>
+        Training
+      </Typography>
 
       {/* ── Cycle Block Section ── */}
       {blockWeekData && (
@@ -229,14 +247,7 @@ const TrainingPage = () => {
             <Typography variant="subtitle1" fontWeight={700}>
               Week {blockWeekData.week} — {blockWeekData.phase}
             </Typography>
-            {blockWeekNum === 3 && (
-              <Chip
-                label="PR window"
-                size="small"
-                color="warning"
-                sx={{ fontSize: "0.7rem" }}
-              />
-            )}
+            {blockWeekNum === 3 && <Chip label="PR window" size="small" color="warning" sx={{ fontSize: "0.7rem" }} />}
           </Stack>
 
           <Typography variant="body2" color="text.secondary" mb={0.5}>
@@ -246,7 +257,10 @@ const TrainingPage = () => {
           <Typography variant="caption" color="text.disabled">
             Cycle day {cycleDay}
             {daysUntilNext != null && daysUntilNext > 0 && (
-              <> · {daysUntilNext} day{daysUntilNext !== 1 ? "s" : ""} until {nextPhase}</>
+              <>
+                {" "}
+                · {daysUntilNext} day{daysUntilNext !== 1 ? "s" : ""} until {nextPhase}
+              </>
             )}
           </Typography>
 
@@ -257,14 +271,7 @@ const TrainingPage = () => {
           )}
 
           {blockWeekData.weekNote && !transitionMsg && (
-            <Typography
-              variant="caption"
-              color="text.disabled"
-              display="block"
-              mt={1}
-              mb={1.5}
-              fontStyle="italic"
-            >
+            <Typography variant="caption" color="text.disabled" display="block" mt={1} mb={1.5} fontStyle="italic">
               {blockWeekData.weekNote}
             </Typography>
           )}
@@ -286,12 +293,8 @@ const TrainingPage = () => {
             This week
           </Typography>
           <Stack gap={1}>
-            {blockWeekData.days.map(day => (
-              <BlockDayCard
-                key={day.dayOfWeek}
-                blockDay={day}
-                isToday={day.dayOfWeek === todayDow}
-              />
+            {blockWeekData.days.map((day) => (
+              <BlockDayCard key={day.dayOfWeek} blockDay={day} isToday={day.dayOfWeek === todayDow} />
             ))}
           </Stack>
         </Box>
@@ -328,13 +331,15 @@ const TrainingPage = () => {
         <>
           {blockWeekData && (
             <Typography variant="overline" color="text.secondary" display="block" mb={2}>
-              Run plan
+              Training plan
             </Typography>
           )}
 
           {/* Plan header */}
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={0.5}>
-            <Typography variant="subtitle1" fontWeight={700}>{plan.name}</Typography>
+            <Typography variant="subtitle1" fontWeight={700}>
+              {plan.name}
+            </Typography>
             <Stack direction="row" gap={0.5}>
               <Button
                 size="small"
@@ -359,7 +364,7 @@ const TrainingPage = () => {
             const currentWeek = plan.weeks[viewWeekIndex];
             const isCurrentWeek = currentWeek?.weekNumber === plan.currentWeek;
             const todaySession: PlannedSession | undefined = isCurrentWeek
-              ? currentWeek?.sessions.find(s => s.dayOfWeek === todayDow)
+              ? currentWeek?.sessions.find((s) => s.dayOfWeek === todayDow)
               : undefined;
             const progressPct = (plan.currentWeek / plan.totalWeeks) * 100;
             const canGoPrev = viewWeekIndex > 0;
@@ -388,11 +393,7 @@ const TrainingPage = () => {
                   )}
                 </Stack>
 
-                <LinearProgress
-                  variant="determinate"
-                  value={progressPct}
-                  sx={{ borderRadius: 4, height: 6, mb: 3 }}
-                />
+                <LinearProgress variant="determinate" value={progressPct} sx={{ borderRadius: 4, height: 6, mb: 3 }} />
 
                 {todaySession && (
                   <Box mb={3}>
@@ -404,8 +405,12 @@ const TrainingPage = () => {
                       isToday
                       showAiButton
                       isSelected={selectedSession?.dayOfWeek === todaySession.dayOfWeek}
-                      onAiCheckIn={() => setSelectedSession(s => s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession)}
-                      onClick={() => setSelectedSession(s => s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession)}
+                      onAiCheckIn={() =>
+                        setSelectedSession((s) => (s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession))
+                      }
+                      onClick={() =>
+                        setSelectedSession((s) => (s?.dayOfWeek === todaySession.dayOfWeek ? null : todaySession))
+                      }
                     />
                     {selectedSession?.dayOfWeek === todaySession.dayOfWeek && (
                       <AISuggestionPanel
@@ -421,14 +426,21 @@ const TrainingPage = () => {
                 <Divider sx={{ mb: 3 }} />
 
                 <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                  <IconButton size="small" onClick={() => { setViewWeekIndex(v => v - 1); setSelectedSession(null); }} disabled={!canGoPrev}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setViewWeekIndex((v) => v - 1);
+                      setSelectedSession(null);
+                    }}
+                    disabled={!canGoPrev}
+                  >
                     <ArrowBackIosNewRoundedIcon fontSize="small" />
                   </IconButton>
                   <Box textAlign="center">
                     <Typography variant="subtitle2" fontWeight={600}>
                       Week {currentWeek?.weekNumber}
-                      {currentWeek?.weeklyKm ? ` · ${currentWeek.weeklyKm} km` : ''}
-                      {isCurrentWeek ? ' (current)' : ''}
+                      {currentWeek?.weeklyKm ? ` · ${currentWeek.weeklyKm} km` : ""}
+                      {isCurrentWeek ? " (current)" : ""}
                     </Typography>
                     {currentWeek?.weekStartDate && (
                       <Typography variant="caption" color="text.secondary" display="block">
@@ -436,7 +448,14 @@ const TrainingPage = () => {
                       </Typography>
                     )}
                   </Box>
-                  <IconButton size="small" onClick={() => { setViewWeekIndex(v => v + 1); setSelectedSession(null); }} disabled={!canGoNext}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setViewWeekIndex((v) => v + 1);
+                      setSelectedSession(null);
+                    }}
+                    disabled={!canGoNext}
+                  >
                     <ArrowForwardIosRoundedIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -448,8 +467,8 @@ const TrainingPage = () => {
                       todayDow={isCurrentWeek ? todayDow : -1}
                       selectedDow={selectedSession?.dayOfWeek}
                       onSelectDay={(dow) => {
-                        const s = currentWeek.sessions.find(s => s.dayOfWeek === dow) ?? null;
-                        setSelectedSession(prev => prev?.dayOfWeek === dow ? null : s);
+                        const s = currentWeek.sessions.find((s) => s.dayOfWeek === dow) ?? null;
+                        setSelectedSession((prev) => (prev?.dayOfWeek === dow ? null : s));
                       }}
                     />
                   </Box>
@@ -458,8 +477,8 @@ const TrainingPage = () => {
                 {currentWeek && (
                   <Stack gap={1.5}>
                     {currentWeek.sessions
-                      .filter(s => s.type !== 'rest')
-                      .map(s => {
+                      .filter((s) => s.type !== "rest")
+                      .map((s) => {
                         const isSelected = selectedSession?.dayOfWeek === s.dayOfWeek;
                         return (
                           <Box key={s.dayOfWeek}>

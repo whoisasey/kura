@@ -71,11 +71,11 @@ export const POST = async (request: Request): Promise<Response> => {
   ];
 
   const journalParts: string[] = [];
-  if (journal?.mood) journalParts.push(`mood ${journal.mood}/10`);
-  if (journal?.energy_level) journalParts.push(`energy ${journal.energy_level}/10`);
+  if (journal?.mood) journalParts.push(`mood ${journal.mood}/5`);
+  if (journal?.energy_level) journalParts.push(`energy ${journal.energy_level}/5`);
   if (journal?.sleep_hours) journalParts.push(`sleep ${journal.sleep_hours}h`);
-  if (journal?.stress_level) journalParts.push(`stress ${journal.stress_level}/10`);
-  if (journal?.hydration_level) journalParts.push(`hydration ${journal.hydration_level}/10`);
+  if (journal?.stress_level) journalParts.push(`stress ${journal.stress_level}/5`);
+  if (journal?.hydration_level) journalParts.push(`hydration ${journal.hydration_level}/5`);
   if (journalParts.length) lines.push(`Today's check-in: ${journalParts.join(", ")}`);
 
   if (symptoms.length) {

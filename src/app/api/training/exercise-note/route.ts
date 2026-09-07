@@ -61,8 +61,8 @@ export const GET = async (request: Request): Promise<Response> => {
     .eq("entry_date", today)
     .maybeSingle();
 
-  const moodStr = journal?.mood ? `mood ${journal.mood}/10` : null;
-  const energyStr = journal?.energy_level ? `energy ${journal.energy_level}/10` : null;
+  const moodStr = journal?.mood ? `mood ${journal.mood}/5` : null;
+  const energyStr = journal?.energy_level ? `energy ${journal.energy_level}/5` : null;
   const sleepStr = journal?.sleep_hours ? `sleep ${journal.sleep_hours}h` : null;
   const journalContext = [moodStr, energyStr, sleepStr].filter(Boolean).join(", ");
 

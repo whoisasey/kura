@@ -38,7 +38,7 @@ interface SessionCardProps {
 }
 
 const SessionCard = ({ session, isToday, onAiCheckIn, showAiButton, isSelected, onClick }: SessionCardProps) => {
-  const isRest = session.type === 'rest';
+  const isRest = session.type === "rest";
   const color = SESSION_COLORS[session.type] ?? "text.primary";
 
   return (
@@ -49,10 +49,10 @@ const SessionCard = ({ session, isToday, onAiCheckIn, showAiButton, isSelected, 
         border: "1.5px solid",
         borderColor: isSelected ? color : isToday ? color : "divider",
         bgcolor: isSelected
-          ? SESSION_BG[session.type] ?? "action.hover"
+          ? (SESSION_BG[session.type] ?? "action.hover")
           : isToday
-          ? SESSION_BG[session.type] ?? "action.hover"
-          : "background.paper",
+            ? (SESSION_BG[session.type] ?? "action.hover")
+            : "background.paper",
         p: 2,
         position: "relative",
         opacity: isRest ? 0.6 : 1,
@@ -115,14 +115,14 @@ const SessionCard = ({ session, isToday, onAiCheckIn, showAiButton, isSelected, 
           >
             AI Check-in
           </Button>
-          <Button
+          {/* <Button
             size="small"
             variant="text"
             disabled
             sx={{ borderRadius: 2, textTransform: "none", fontSize: "0.8rem", color: "text.disabled" }}
           >
             Log workout
-          </Button>
+          </Button> */}
         </Stack>
       )}
     </Box>
