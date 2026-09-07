@@ -16,7 +16,7 @@ const tabs = [
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
   { label: "Training", icon: <DirectionsRunRoundedIcon />, path: "/training" },
   { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },
-  { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
+  // { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
 ];
 
 const BottomNav = () => {
