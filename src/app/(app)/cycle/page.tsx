@@ -26,7 +26,6 @@ const CyclePage = () => {
   const [refresh, setRefresh] = useState(0);
   const [initialLoad, setInitialLoad] = useState(true);
   const [insightLoading, setInsightLoading] = useState(true);
-  const [calendarLoading, setCalendarLoading] = useState(true);
   const [insight, setInsight] = useState<CycleInsight | null>(null);
   const [latestCycle, setLatestCycle] = useState<Cycle | null>(null);
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -39,7 +38,6 @@ const CyclePage = () => {
     const supabase = createClient();
 
     const loadCalendar = async () => {
-      setCalendarLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
@@ -51,7 +49,6 @@ const CyclePage = () => {
       setLatestCycle(cycle);
       setCycles(last6);
       setPredictedNextPeriod(computePredictedNextPeriod(last6.map((c) => c.period_start)));
-      setCalendarLoading(false);
     };
 
     const loadInsight = async () => {
