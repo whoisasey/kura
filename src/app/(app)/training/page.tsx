@@ -40,6 +40,21 @@ import { createClient } from "@/lib/supabase/client";
 import { cycleBlockPlan } from "@/lib/training/seedData";
 import { useRouter } from "next/navigation";
 
+type PastOutcome = {
+  status: "completed" | "modified" | "skipped";
+  note: string | null;
+  streak: number; // consecutive cycles with the same status
+};
+type PastPatterns = Record<number, PastOutcome>; // keyed by dayOfWeek
+
+const patternMsg = (p: PastOutcome): string | null => {
+  if (p.status === "completed") return null; // expected, not worth surfacing
+  const prefix = p.streak >= 2 ? `Last ${p.streak} cycles` : "Last cycle";
+  if (p.status === "skipped") return `${prefix}: skipped`;
+  if (p.status === "modified") return p.note ? `${prefix}: ${p.note}` : `${prefix}: modified`;
+  return null;
+};
+
 const BLOCK_SESSION_COLORS: Record<string, string> = {
   physio: "success.main",
   resistance: "secondary.main",
@@ -56,9 +71,10 @@ interface BlockDayCardProps {
   cycleDay?: number;
   showLogger?: boolean;
   blockWeek?: number;
+  pastPattern?: PastOutcome;
 }
 
-const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blockWeek }: BlockDayCardProps) => {
+const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blockWeek, pastPattern }: BlockDayCardProps) => {
   const [open, setOpen] = useState(isToday);
   const [showAi, setShowAi] = useState(false);
   const dotColor = BLOCK_SESSION_COLORS[blockDay.sessionType] ?? "text.secondary";
@@ -165,6 +181,19 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blo
         </Collapse>
       ) : null}
 
+      {pastPattern && patternMsg(pastPattern) && (
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          display="block"
+          px={2}
+          pb={showLogger ? 0 : 1.5}
+          fontStyle="italic"
+        >
+          {patternMsg(pastPattern)}
+        </Typography>
+      )}
+
       {showLogger && cycleDay != null && blockWeek != null && (
         <SessionOutcomeLogger
           blockDay={blockDay}
@@ -186,6 +215,7 @@ const TrainingPage = () => {
   const [cycleDay, setCycleDay] = useState<number | undefined>();
   const [avgCycleLength, setAvgCycleLength] = useState(29);
   const [viewWeek, setViewWeek] = useState<1 | 2 | 3 | 4>(1);
+  const [pastPatterns, setPastPatterns] = useState<PastPatterns>({});
 
   const todayDow = new Date().getDay();
   const todayStr = new Date().toLocaleDateString("en-CA");
@@ -197,7 +227,7 @@ const TrainingPage = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      const [activePlan, cycleRes, avgLen] = await Promise.all([
+      const [activePlan, cycleRes, avgLen, pastLogsRes] = await Promise.all([
         getActivePlan(supabase, user.id),
         supabase
           .from("cycles")
@@ -207,11 +237,41 @@ const TrainingPage = () => {
           .limit(1)
           .maybeSingle(),
         getAvgCycleLength(supabase, user.id),
+        supabase
+          .from("workout_sessions")
+          .select("day_of_week, status, completion_notes, scheduled_date")
+          .eq("user_id", user.id)
+          .eq("week_number", 1)
+          .order("scheduled_date", { ascending: false })
+          .limit(28), // 4 cycles × 7 days
       ]);
 
       setPlan(activePlan);
-
       setAvgCycleLength(avgLen);
+
+      // Group past Week 1 logs by day_of_week, compute pattern per day
+      if (pastLogsRes.data?.length) {
+        const byDay: Record<number, Array<{ status: string; note: string | null }>> = {};
+        for (const row of pastLogsRes.data) {
+          if (!byDay[row.day_of_week]) byDay[row.day_of_week] = [];
+          byDay[row.day_of_week].push({ status: row.status, note: row.completion_notes });
+        }
+        const computed: PastPatterns = {};
+        for (const [dow, logs] of Object.entries(byDay)) {
+          const recent = logs[0];
+          let streak = 0;
+          for (const l of logs) {
+            if (l.status === recent.status) streak++;
+            else break;
+          }
+          computed[Number(dow)] = {
+            status: recent.status as PastOutcome["status"],
+            note: recent.note,
+            streak,
+          };
+        }
+        setPastPatterns(computed);
+      }
 
       if (cycleRes.data) {
         setCyclePhase((cycleRes.data.phase as CyclePhase) ?? undefined);
@@ -415,6 +475,7 @@ const TrainingPage = () => {
             cycleDay={cycleDay}
             showLogger={viewWeek === 1 && isViewingCurrentWeek && day.dayOfWeek === todayDow}
             blockWeek={viewWeek}
+            pastPattern={viewWeek === 1 ? pastPatterns[day.dayOfWeek] : undefined}
           />
         ))}
       </Stack>
