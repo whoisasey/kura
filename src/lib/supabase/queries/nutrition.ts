@@ -111,22 +111,27 @@ export const getMealsWithMacrosForDate = async (
 ): Promise<MealWithMacros[]> => {
   const supabase = createClient();
 
-  const { data: entry } = await supabase
-    .from("journal_entries")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("entry_date", date)
-    .single();
+  try {
+    const { data: entry } = await supabase
+      .from("journal_entries")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("entry_date", date)
+      .single();
 
-  if (!entry) return [];
+    if (!entry) return [];
 
-  const { data } = await supabase
-    .from("meals")
-    .select("*")
-    .eq("journal_entry_id", entry.id)
-    .order("logged_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("meals")
+      .select("*")
+      .eq("journal_entry_id", entry.id)
+      .order("logged_at", { ascending: true });
 
-  return (data ?? []) as MealWithMacros[];
+    if (error) return [];
+    return (data ?? []) as MealWithMacros[];
+  } catch {
+    return [];
+  }
 };
 
 export const addMealWithMacros = async (
@@ -170,13 +175,18 @@ export const deleteMeal = async (id: string): Promise<void> => {
 export const getFoodLibrary = async (userId: string): Promise<FoodLibraryItem[]> => {
   const supabase = createClient();
 
-  const { data } = await supabase
-    .from("food_library")
-    .select("*")
-    .eq("user_id", userId)
-    .order("name", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("food_library")
+      .select("*")
+      .eq("user_id", userId)
+      .order("name", { ascending: true });
 
-  return (data ?? []) as FoodLibraryItem[];
+    if (error) return [];
+    return (data ?? []) as FoodLibraryItem[];
+  } catch {
+    return [];
+  }
 };
 
 export const addFoodLibraryItem = async (
@@ -231,15 +241,7 @@ export const saveMealPrepBatch = async (
 export const getDailyTargets = async (userId: string): Promise<DailyTargets> => {
   const supabase = createClient();
 
-  const { data } = await supabase
-    .from("daily_targets")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
-
-  if (data) return data as DailyTargets;
-
-  return {
+  const defaults: DailyTargets = {
     id: "",
     user_id: userId,
     calorie_target: 1600,
@@ -248,6 +250,19 @@ export const getDailyTargets = async (userId: string): Promise<DailyTargets> => 
     fat_target: null,
     updated_at: new Date().toISOString(),
   };
+
+  try {
+    const { data, error } = await supabase
+      .from("daily_targets")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (error || !data) return defaults;
+    return data as DailyTargets;
+  } catch {
+    return defaults;
+  }
 };
 
 export const upsertDailyTargets = async (
