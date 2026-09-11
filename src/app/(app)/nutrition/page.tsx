@@ -131,12 +131,14 @@ const NutritionPage = () => {
   const [libServings, setLibServings] = useState("1");
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [photoEstimate, setPhotoEstimate] = useState<null | {
+    name: string;
     description: string;
     calories: number;
     protein: number;
     carbs: number;
     fat: number;
   }>(null);
+  const [photoSimilarItems, setPhotoSimilarItems] = useState<FoodLibraryItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [savingMeal, setSavingMeal] = useState(false);
 
@@ -295,7 +297,7 @@ const NutritionPage = () => {
     } else if (addMealTab === 2 && photoEstimate) {
       const saved = await addMealWithMacros(entry.id, {
         meal_type: mealType,
-        description: photoEstimate.description,
+        description: photoEstimate.name,
         calories: photoEstimate.calories,
         protein: photoEstimate.protein,
         carbs: photoEstimate.carbs,
@@ -307,6 +309,7 @@ const NutritionPage = () => {
     setAddMealOpen(false);
     setMealItems([emptyMealItem()]);
     setPhotoEstimate(null);
+    setPhotoSimilarItems([]);
     setSelectedLibItem(null);
     setLibServings("1");
     setSavingMeal(false);
@@ -328,6 +331,7 @@ const NutritionPage = () => {
       });
       if (res.ok) {
         const data = (await res.json()) as {
+          name: string;
           description: string;
           calories: number;
           protein: number;
@@ -335,6 +339,12 @@ const NutritionPage = () => {
           fat: number;
         };
         setPhotoEstimate(data);
+        const photoName = data.name.toLowerCase();
+        const similar = library.filter((item) => {
+          const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+          return itemWords.some((word) => photoName.includes(word));
+        });
+        setPhotoSimilarItems(similar);
       }
       setPhotoAnalyzing(false);
     };
@@ -881,7 +891,16 @@ const NutritionPage = () => {
         </Box>
       )}
 
-      <Dialog open={addMealOpen} onClose={() => setAddMealOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={addMealOpen}
+        onClose={() => {
+          setAddMealOpen(false);
+          setPhotoEstimate(null);
+          setPhotoSimilarItems([]);
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Add meal</DialogTitle>
         <DialogContent>
           <Tabs
@@ -1142,18 +1161,64 @@ const NutritionPage = () => {
               )}
 
               {photoEstimate && (
-                <Box sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
-                  <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>
-                    {photoEstimate.description}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {photoEstimate.calories} kcal · P {photoEstimate.protein}g · C{" "}
-                    {photoEstimate.carbs}g · F {photoEstimate.fat}g
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                    Review and confirm before saving
-                  </Typography>
-                </Box>
+                <>
+                  <Box sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
+                    <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
+                      {photoEstimate.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                      {photoEstimate.description}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {photoEstimate.calories} kcal · P {photoEstimate.protein}g · C{" "}
+                      {photoEstimate.carbs}g · F {photoEstimate.fat}g
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      Review and confirm before saving
+                    </Typography>
+                  </Box>
+
+                  {photoSimilarItems.length > 0 && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+                        Similar items in your library — use one instead?
+                      </Typography>
+                      {photoSimilarItems.map((item) => (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            py: 0.75,
+                            borderBottom: "0.5px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" fontWeight={500}>
+                              {item.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {item.calories_per_serving ?? "–"} kcal
+                              {item.protein_per_serving != null ? ` · P ${item.protein_per_serving}g` : ""}
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              setSelectedLibItem(item);
+                              setLibServings("1");
+                              setAddMealTab(1);
+                            }}
+                          >
+                            Use this
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </>
               )}
             </Box>
           )}

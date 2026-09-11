@@ -8,6 +8,7 @@ interface EstimateRequest {
 }
 
 interface EstimateResult {
+  name: string;
   description: string;
   calories: number;
   protein: number;
@@ -27,7 +28,7 @@ export const POST = async (request: Request): Promise<Response> => {
 
   const prompt =
     type === "meal"
-      ? "Analyze this meal photo. Estimate the nutritional content. Respond with JSON only: { description, calories, protein_g, carbs_g, fat_g }. Be conservative with estimates. Assume standard restaurant portions unless the image suggests otherwise."
+      ? "Analyze this meal photo. Estimate the nutritional content. Respond with JSON only: { name, description, calories, protein_g, carbs_g, fat_g }. 'name' must be a short human-readable label (e.g. 'Toast', '2 scrambled eggs', 'Miso chicken') — max 4 words, no filler adjectives like 'toasted' or 'pan-cooked'. 'description' is a brief visual description of what you see. Be conservative with estimates."
       : "Read this nutrition label. Extract the per-serving data. Respond with JSON only: { product_name, serving_size, calories, protein_g, carbs_g, fat_g }. Use the serving size as shown.";
 
   let raw: string;
@@ -73,6 +74,7 @@ export const POST = async (request: Request): Promise<Response> => {
   const result: EstimateResult =
     type === "meal"
       ? {
+          name: String(parsed.name ?? parsed.description ?? ""),
           description: String(parsed.description ?? ""),
           calories: Number(parsed.calories ?? 0),
           protein: Number(parsed.protein_g ?? 0),
@@ -80,6 +82,7 @@ export const POST = async (request: Request): Promise<Response> => {
           fat: Number(parsed.fat_g ?? 0),
         }
       : {
+          name: String(parsed.product_name ?? ""),
           description: String(parsed.product_name ?? ""),
           calories: Number(parsed.calories ?? 0),
           protein: Number(parsed.protein_g ?? 0),
