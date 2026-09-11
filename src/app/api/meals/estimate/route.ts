@@ -3,8 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 const anthropic = new Anthropic();
 
 interface EstimateRequest {
-  image: string;
-  type: "meal" | "label";
+  image?: string;
+  text?: string;
+  type: "meal" | "label" | "describe";
 }
 
 interface EstimateResult {
@@ -14,48 +15,70 @@ interface EstimateResult {
   protein: number;
   carbs: number;
   fat: number;
+  weight_g?: number;
   servingSize?: string;
 }
 
+const MACRO_JSON_PROMPT =
+  "Respond with JSON only: { name, description, calories, protein_g, carbs_g, fat_g, weight_g }. " +
+  "'name' must be a short human-readable label (e.g. 'Toast', '2 scrambled eggs', 'Miso chicken') — max 4 words. " +
+  "'description' is a one-sentence summary. " +
+  "'weight_g' is the estimated serving weight in grams (use the user's stated weight if given, otherwise estimate). " +
+  "Be conservative with calorie estimates.";
+
 export const POST = async (request: Request): Promise<Response> => {
   const body = (await request.json()) as unknown;
+  const { image, text, type } = body as EstimateRequest;
 
-  const { image, type } = body as EstimateRequest;
-
-  if (!image || !type) {
+  if (!type || (type !== "describe" && !image)) {
     return Response.json({ error: "missing_fields" }, { status: 400 });
   }
-
-  const prompt =
-    type === "meal"
-      ? "Analyze this meal photo. Estimate the nutritional content. Respond with JSON only: { name, description, calories, protein_g, carbs_g, fat_g }. 'name' must be a short human-readable label (e.g. 'Toast', '2 scrambled eggs', 'Miso chicken') — max 4 words, no filler adjectives like 'toasted' or 'pan-cooked'. 'description' is a brief visual description of what you see. Be conservative with estimates."
-      : "Read this nutrition label. Extract the per-serving data. Respond with JSON only: { product_name, serving_size, calories, protein_g, carbs_g, fat_g }. Use the serving size as shown.";
 
   let raw: string;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 512,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: image,
-              },
-            },
-            { type: "text", text: prompt },
-          ],
-        },
-      ],
-    });
+    if (type === "describe") {
+      if (!text) return Response.json({ error: "missing_fields" }, { status: 400 });
 
-    raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        messages: [
+          {
+            role: "user",
+            content: `The user has: "${text}". Estimate the nutritional content. ${MACRO_JSON_PROMPT}`,
+          },
+        ],
+      });
+      raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+    } else {
+      const prompt =
+        type === "meal"
+          ? `Analyze this meal photo. Estimate the nutritional content. ${MACRO_JSON_PROMPT}`
+          : "Read this nutrition label. Extract the per-serving data. Respond with JSON only: { product_name, serving_size, calories, protein_g, carbs_g, fat_g }. Use the serving size as shown.";
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: "image/jpeg",
+                  data: image!,
+                },
+              },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+      });
+      raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+    }
   } catch (err) {
     console.error("[meals/estimate] Claude call failed:", err);
     return Response.json({ error: "estimate_failed" }, { status: 500 });
@@ -72,16 +95,8 @@ export const POST = async (request: Request): Promise<Response> => {
   }
 
   const result: EstimateResult =
-    type === "meal"
+    type === "label"
       ? {
-          name: String(parsed.name ?? parsed.description ?? ""),
-          description: String(parsed.description ?? ""),
-          calories: Number(parsed.calories ?? 0),
-          protein: Number(parsed.protein_g ?? 0),
-          carbs: Number(parsed.carbs_g ?? 0),
-          fat: Number(parsed.fat_g ?? 0),
-        }
-      : {
           name: String(parsed.product_name ?? ""),
           description: String(parsed.product_name ?? ""),
           calories: Number(parsed.calories ?? 0),
@@ -89,6 +104,15 @@ export const POST = async (request: Request): Promise<Response> => {
           carbs: Number(parsed.carbs_g ?? 0),
           fat: Number(parsed.fat_g ?? 0),
           servingSize: String(parsed.serving_size ?? ""),
+        }
+      : {
+          name: String(parsed.name ?? parsed.description ?? ""),
+          description: String(parsed.description ?? ""),
+          calories: Number(parsed.calories ?? 0),
+          protein: Number(parsed.protein_g ?? 0),
+          carbs: Number(parsed.carbs_g ?? 0),
+          fat: Number(parsed.fat_g ?? 0),
+          weight_g: parsed.weight_g ? Number(parsed.weight_g) : 0,
         };
 
   return Response.json(result);

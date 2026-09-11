@@ -130,6 +130,8 @@ const NutritionPage = () => {
   const [selectedLibItem, setSelectedLibItem] = useState<FoodLibraryItem | null>(null);
   const [libServings, setLibServings] = useState("1");
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
+  const [describeQuery, setDescribeQuery] = useState("");
+  const [describeAnalyzing, setDescribeAnalyzing] = useState(false);
   const [photoEstimate, setPhotoEstimate] = useState<null | {
     name: string;
     description: string;
@@ -312,9 +314,20 @@ const NutritionPage = () => {
     setMealItems([emptyMealItem()]);
     setPhotoEstimate(null);
     setPhotoSimilarItems([]);
+    setDescribeQuery("");
     setSelectedLibItem(null);
     setLibServings("1");
     setSavingMeal(false);
+  };
+
+  const applyEstimate = (data: { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number }) => {
+    setPhotoEstimate({ ...data, weight_g: data.weight_g ?? 0 });
+    const nameLower = data.name.toLowerCase();
+    const similar = library.filter((item) => {
+      const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+      return itemWords.some((word) => nameLower.includes(word));
+    });
+    setPhotoSimilarItems(similar);
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,6 +335,7 @@ const NutritionPage = () => {
     if (!file) return;
     setPhotoAnalyzing(true);
     setPhotoEstimate(null);
+    setPhotoSimilarItems([]);
 
     const reader = new FileReader();
     reader.onload = async () => {
@@ -332,25 +346,30 @@ const NutritionPage = () => {
         body: JSON.stringify({ image: base64, type: "meal" }),
       });
       if (res.ok) {
-        const data = (await res.json()) as {
-          name: string;
-          description: string;
-          calories: number;
-          protein: number;
-          carbs: number;
-          fat: number;
-        };
-        setPhotoEstimate({ ...data, weight_g: 0 });
-        const photoName = data.name.toLowerCase();
-        const similar = library.filter((item) => {
-          const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
-          return itemWords.some((word) => photoName.includes(word));
-        });
-        setPhotoSimilarItems(similar);
+        const data = (await res.json()) as { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number };
+        applyEstimate(data);
       }
       setPhotoAnalyzing(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleDescribeEstimate = async () => {
+    if (!describeQuery.trim()) return;
+    setDescribeAnalyzing(true);
+    setPhotoEstimate(null);
+    setPhotoSimilarItems([]);
+
+    const res = await fetch("/api/meals/estimate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: describeQuery.trim(), type: "describe" }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number };
+      applyEstimate(data);
+    }
+    setDescribeAnalyzing(false);
   };
 
   const handleSaveTargets = async () => {
@@ -899,6 +918,7 @@ const NutritionPage = () => {
           setAddMealOpen(false);
           setPhotoEstimate(null);
           setPhotoSimilarItems([]);
+          setDescribeQuery("");
         }}
         fullWidth
         maxWidth="xs"
@@ -913,7 +933,7 @@ const NutritionPage = () => {
           >
             <Tab label="Manual" />
             <Tab label="Library" />
-            <Tab label="Photo" />
+            <Tab label="AI" />
           </Tabs>
 
           {addMealTab === 0 && (
@@ -1148,10 +1168,35 @@ const NutritionPage = () => {
                 variant="outlined"
                 fullWidth
                 onClick={() => fileInputRef.current?.click()}
-                sx={{ mb: 2 }}
+                sx={{ mb: 1.5 }}
               >
                 Take photo or choose image
               </Button>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 1.5 }}>
+                or describe what you have
+              </Typography>
+
+              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                <TextField
+                  size="small"
+                  placeholder="e.g. 70g of bakery toast"
+                  fullWidth
+                  value={describeQuery}
+                  onChange={(e) => setDescribeQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void handleDescribeEstimate(); }}
+                  disabled={describeAnalyzing}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => void handleDescribeEstimate()}
+                  disabled={!describeQuery.trim() || describeAnalyzing}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {describeAnalyzing ? <CircularProgress size={16} color="inherit" /> : "Estimate"}
+                </Button>
+              </Box>
 
               {photoAnalyzing && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
