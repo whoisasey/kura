@@ -3,6 +3,7 @@
 import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
+import { getActivitiesForEntry, getMealsForEntry } from "@/lib/supabase/queries/journal";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
@@ -12,6 +13,10 @@ import EnvBanner from "@/components/env/EnvBanner";
 import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
 import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
+import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
+import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
+import type { BlockDay } from "@/lib/training/cycleBlock";
+import { getCycleBlockWeek } from "@/lib/training/getCycleBlockWeek";
 import { cycleBlockPlan } from "@/lib/training/seedData";
 import { useRouter } from "next/navigation";
 
@@ -30,10 +35,24 @@ interface Cycle {
 }
 
 interface TodayEntry {
+  id: string;
   energy_level?: number;
   sleep_hours?: number;
   stress_level?: number;
   hydration_level?: number;
+}
+
+interface Meal {
+  id: string;
+  meal_type: string;
+  description: string;
+}
+
+interface Activity {
+  id: string;
+  activity_type: string;
+  description: string;
+  duration_minutes?: number;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -95,6 +114,10 @@ const DashboardPage = () => {
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [todayEntry, setTodayEntry] = useState<TodayEntry | null>(null);
   const [weatherReading, setWeatherReading] = useState<WeatherReading | null>(null);
+  const [todayMeals, setTodayMeals] = useState<Meal[]>([]);
+  const [todayActivities, setTodayActivities] = useState<Activity[]>([]);
+  const [avgCycleLength, setAvgCycleLength] = useState(29);
+  const [todayBlockDay, setTodayBlockDay] = useState<BlockDay | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -123,11 +146,27 @@ const DashboardPage = () => {
       setTodayEntry(entry);
       if (weather) setWeatherReading(weather);
 
+      if (entry?.id) {
+        const [meals, activities] = await Promise.all([
+          getMealsForEntry(entry.id),
+          getActivitiesForEntry(entry.id),
+        ]);
+        setTodayMeals(meals as Meal[]);
+        setTodayActivities(activities as Activity[]);
+      }
+
       if (cyc?.period_start) {
         const [y, m, d] = cyc.period_start.split("-").map(Number);
         const start = new Date(y, m - 1, d);
         const day = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setCycleDay(day);
+
+        const avgLen = await getAvgCycleLength(supabase, user.id);
+        setAvgCycleLength(avgLen);
+        const blockWeekNum = getCycleBlockWeek(day, avgLen);
+        const blockWeekData = CYCLE_BLOCK[blockWeekNum - 1];
+        const todayDow = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        setTodayBlockDay(blockWeekData?.days.find((bd) => bd.dayOfWeek === todayDow) ?? null);
       }
 
       setLoading(false);
@@ -364,6 +403,121 @@ const DashboardPage = () => {
             </Box>
           ))}
         </Box>
+      )}
+
+      {/* Meals summary */}
+      {todayMeals.length > 0 && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Meals today
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/journal")}
+              >
+                Edit
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {todayMeals.map((meal) => (
+                <Box key={meal.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Chip label={meal.meal_type} size="small" sx={{ textTransform: "capitalize", minWidth: 72 }} />
+                  <Typography variant="body2" color="text.primary">{meal.description}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Activities summary */}
+      {todayActivities.length > 0 && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Activities today
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/journal")}
+              >
+                Edit
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {todayActivities.map((act) => (
+                <Box key={act.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Chip label={act.activity_type} size="small" sx={{ textTransform: "capitalize", minWidth: 72 }} />
+                  <Typography variant="body2" color="text.primary">
+                    {act.description}
+                    {act.duration_minutes ? (
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                        {act.duration_minutes} min
+                      </Typography>
+                    ) : null}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Today's training */}
+      {todayBlockDay && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Training today
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/training")}
+              >
+                View
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  bgcolor: {
+                    physio: "success.main",
+                    resistance: "secondary.main",
+                    pilates: "warning.dark",
+                    run: "primary.main",
+                    yoga: "success.light",
+                    rest: "text.disabled",
+                  }[todayBlockDay.sessionType] ?? "text.disabled",
+                }}
+              />
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  {todayBlockDay.label}
+                </Typography>
+                {todayBlockDay.exercises && todayBlockDay.exercises.length > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    {todayBlockDay.exercises.slice(0, 2).join(" · ")}
+                    {todayBlockDay.exercises.length > 2 ? ` +${todayBlockDay.exercises.length - 2} more` : ""}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       {/* Journal CTA */}
