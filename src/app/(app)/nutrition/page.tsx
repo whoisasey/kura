@@ -227,7 +227,18 @@ const NutritionPage = () => {
     setMeals((prev) => prev.filter((m) => m.id !== id));
   };
 
-  const handleSaveMeal = async () => {
+  const resetMealDialog = () => {
+    setAddMealOpen(false);
+    setMealItems([emptyMealItem()]);
+    setPhotoEstimate(null);
+    setPhotoSimilarItems([]);
+    setDescribeQuery("");
+    setSelectedLibItem(null);
+    setLibServings("1");
+    setSavingMeal(false);
+  };
+
+  const handleSaveMeal = async (aiMode?: "log" | "library") => {
     if (!userId) return;
     setSavingMeal(true);
 
@@ -298,26 +309,45 @@ const NutritionPage = () => {
       });
       if (saved) setMeals((prev) => [...prev, saved]);
     } else if (addMealTab === 2 && photoEstimate) {
+      const wt = photoEstimate.weight_g || null;
+      const cal = photoEstimate.calories || null;
+      const pro = photoEstimate.protein || null;
+      const carb = photoEstimate.carbs || null;
+      const fat = photoEstimate.fat || null;
+
       const saved = await addMealWithMacros(entry.id, {
         meal_type: mealType,
         description: photoEstimate.name,
-        calories: photoEstimate.calories || null,
-        protein: photoEstimate.protein || null,
-        carbs: photoEstimate.carbs || null,
-        fat: photoEstimate.fat || null,
-        weight_g: photoEstimate.weight_g || null,
+        calories: cal,
+        protein: pro,
+        carbs: carb,
+        fat: fat,
+        weight_g: wt,
       });
       if (saved) setMeals((prev) => [...prev, saved]);
+
+      if (aiMode === "library") {
+        const libItem = await addFoodLibraryItem(userId, {
+          name: photoEstimate.name,
+          serving_weight_g: wt,
+          calories_per_serving: cal,
+          protein_per_serving: pro,
+          carbs_per_serving: carb,
+          fat_per_serving: fat,
+          ...(wt && wt > 0
+            ? {
+                calories_per_100g: cal != null ? Math.round((cal / wt) * 100) : null,
+                protein_per_100g: pro != null ? Math.round((pro / wt) * 1000) / 10 : null,
+                carbs_per_100g: carb != null ? Math.round((carb / wt) * 1000) / 10 : null,
+                fat_per_100g: fat != null ? Math.round((fat / wt) * 1000) / 10 : null,
+              }
+            : {}),
+        });
+        if (libItem) setLibrary((prev) => [...prev, libItem]);
+      }
     }
 
-    setAddMealOpen(false);
-    setMealItems([emptyMealItem()]);
-    setPhotoEstimate(null);
-    setPhotoSimilarItems([]);
-    setDescribeQuery("");
-    setSelectedLibItem(null);
-    setLibServings("1");
-    setSavingMeal(false);
+    resetMealDialog();
   };
 
   const applyEstimate = (data: { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number }) => {
@@ -914,12 +944,7 @@ const NutritionPage = () => {
 
       <Dialog
         open={addMealOpen}
-        onClose={() => {
-          setAddMealOpen(false);
-          setPhotoEstimate(null);
-          setPhotoSimilarItems([]);
-          setDescribeQuery("");
-        }}
+        onClose={resetMealDialog}
         fullWidth
         maxWidth="xs"
       >
@@ -1312,14 +1337,33 @@ const NutritionPage = () => {
           )}
 
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
-            <Button onClick={() => setAddMealOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              disabled={savingMeal}
-              onClick={handleSaveMeal}
-            >
-              {savingMeal ? "Saving…" : "Save"}
-            </Button>
+            <Button onClick={resetMealDialog}>Cancel</Button>
+            {addMealTab === 2 && photoEstimate ? (
+              <>
+                <Button
+                  variant="outlined"
+                  disabled={savingMeal}
+                  onClick={() => void handleSaveMeal("log")}
+                >
+                  {savingMeal ? "Saving…" : "Log once"}
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={savingMeal}
+                  onClick={() => void handleSaveMeal("library")}
+                >
+                  {savingMeal ? "Saving…" : "Add to library"}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="contained"
+                disabled={savingMeal}
+                onClick={() => void handleSaveMeal()}
+              >
+                {savingMeal ? "Saving…" : "Save"}
+              </Button>
+            )}
           </Box>
         </DialogContent>
       </Dialog>
