@@ -137,6 +137,7 @@ const NutritionPage = () => {
     protein: number;
     carbs: number;
     fat: number;
+    weight_g: number;
   }>(null);
   const [photoSimilarItems, setPhotoSimilarItems] = useState<FoodLibraryItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -298,10 +299,11 @@ const NutritionPage = () => {
       const saved = await addMealWithMacros(entry.id, {
         meal_type: mealType,
         description: photoEstimate.name,
-        calories: photoEstimate.calories,
-        protein: photoEstimate.protein,
-        carbs: photoEstimate.carbs,
-        fat: photoEstimate.fat,
+        calories: photoEstimate.calories || null,
+        protein: photoEstimate.protein || null,
+        carbs: photoEstimate.carbs || null,
+        fat: photoEstimate.fat || null,
+        weight_g: photoEstimate.weight_g || null,
       });
       if (saved) setMeals((prev) => [...prev, saved]);
     }
@@ -338,7 +340,7 @@ const NutritionPage = () => {
           carbs: number;
           fat: number;
         };
-        setPhotoEstimate(data);
+        setPhotoEstimate({ ...data, weight_g: 0 });
         const photoName = data.name.toLowerCase();
         const similar = library.filter((item) => {
           const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
@@ -1162,20 +1164,61 @@ const NutritionPage = () => {
 
               {photoEstimate && (
                 <>
-                  <Box sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
-                    <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
-                      {photoEstimate.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                      {photoEstimate.description}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {photoEstimate.calories} kcal · P {photoEstimate.protein}g · C{" "}
-                      {photoEstimate.carbs}g · F {photoEstimate.fat}g
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                      Review and confirm before saving
-                    </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    {photoEstimate.description}
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <TextField
+                      size="small"
+                      label="Name"
+                      fullWidth
+                      value={photoEstimate.name}
+                      onChange={(e) => setPhotoEstimate((p) => p && { ...p, name: e.target.value })}
+                    />
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="kcal"
+                        type="number"
+                        value={photoEstimate.calories || ""}
+                        onChange={(e) => setPhotoEstimate((p) => p && { ...p, calories: Number(e.target.value) })}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="g"
+                        type="number"
+                        value={photoEstimate.weight_g || ""}
+                        onChange={(e) => setPhotoEstimate((p) => p && { ...p, weight_g: Number(e.target.value) })}
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="P"
+                        type="number"
+                        value={photoEstimate.protein || ""}
+                        onChange={(e) => setPhotoEstimate((p) => p && { ...p, protein: Number(e.target.value) })}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="C"
+                        type="number"
+                        value={photoEstimate.carbs || ""}
+                        onChange={(e) => setPhotoEstimate((p) => p && { ...p, carbs: Number(e.target.value) })}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="F"
+                        type="number"
+                        value={photoEstimate.fat || ""}
+                        onChange={(e) => setPhotoEstimate((p) => p && { ...p, fat: Number(e.target.value) })}
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
                   </Box>
 
                   {photoSimilarItems.length > 0 && (
