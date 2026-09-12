@@ -6,7 +6,6 @@ import {
   CardContent,
   Chip,
   Divider,
-  IconButton,
   Slider,
   Snackbar,
   TextField,
@@ -14,12 +13,6 @@ import {
 } from "@mui/material";
 import KuraLogo from "@/components/ui/KuraLogo";
 import {
-  addActivity,
-  addMeal,
-  deleteActivity,
-  deleteMeal,
-  getActivitiesForEntry,
-  getMealsForEntry,
   getOrCreateTodayEntry,
   getSymptomsForEntry,
   toggleSymptom,
@@ -27,8 +20,6 @@ import {
 } from "@/lib/supabase/queries/journal";
 import { useEffect, useState } from "react";
 
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import { createClient } from "@/lib/supabase/client";
 import { prefetchCycleInsight } from "@/lib/cycle/prefetchInsight";
 import { useRouter } from "next/navigation";
@@ -41,8 +32,6 @@ const moodEmoji: Record<string, string> = {
   low: "😔",
   awful: "😞",
 };
-const mealTypes = ["breakfast", "lunch", "dinner", "snack"] as const;
-const activityTypes = ["exercise", "rest", "social", "creative", "work", "other"] as const;
 const symptomList = ["cramps", "bloating", "headache", "acne", "fatigue", "breast_tenderness", "joint_pain", "other"] as const;
 
 interface JournalEntry {
@@ -55,19 +44,6 @@ interface JournalEntry {
   hydration_level?: number;
   notes?: string;
   [key: string]: unknown;
-}
-
-interface Meal {
-  id: string;
-  meal_type: string;
-  description: string;
-}
-
-interface Activity {
-  id: string;
-  activity_type: string;
-  description: string;
-  duration_minutes?: number;
 }
 
 interface Symptom {
@@ -85,14 +61,7 @@ const JournalPage = () => {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [entry, setEntry] = useState<JournalEntry | null>(null);
-  const [meals, setMeals] = useState<Meal[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
-  const [newMealType, setNewMealType] = useState("breakfast");
-  const [newMealDesc, setNewMealDesc] = useState("");
-  const [newActivityType, setNewActivityType] = useState("exercise");
-  const [newActivityDesc, setNewActivityDesc] = useState("");
-  const [newActivityDuration, setNewActivityDuration] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -111,14 +80,7 @@ const JournalPage = () => {
 
       setEntry(e);
 
-      const [m, a, s] = await Promise.all([
-        getMealsForEntry(e.id),
-        getActivitiesForEntry(e.id),
-        getSymptomsForEntry(e.id),
-      ]);
-
-      setMeals(m);
-      setActivities(a);
+      const s = await getSymptomsForEntry(e.id);
       setSymptoms(s);
       setLoading(false);
     };
@@ -133,40 +95,6 @@ const JournalPage = () => {
       setSaved(true);
       prefetchCycleInsight();
     }
-  };
-
-  const handleAddMeal = async () => {
-    if (!entry || !newMealDesc.trim()) return;
-    const meal = await addMeal(entry.id, newMealType, newMealDesc.trim());
-    if (meal) {
-      setMeals((prev) => [...prev, meal]);
-      setNewMealDesc("");
-    }
-  };
-
-  const handleDeleteMeal = async (id: string) => {
-    await deleteMeal(id);
-    setMeals((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  const handleAddActivity = async () => {
-    if (!entry || !newActivityDesc.trim()) return;
-    const act = await addActivity(
-      entry.id,
-      newActivityType,
-      newActivityDesc.trim(),
-      newActivityDuration ? parseInt(newActivityDuration) : undefined
-    );
-    if (act) {
-      setActivities((prev) => [...prev, act]);
-      setNewActivityDesc("");
-      setNewActivityDuration("");
-    }
-  };
-
-  const handleDeleteActivity = async (id: string) => {
-    await deleteActivity(id);
-    setActivities((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleToggleSymptom = async (symptom: string) => {
@@ -286,109 +214,6 @@ const JournalPage = () => {
                 />
               );
             })}
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Meals */}
-      <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
-        <CardContent>
-          <SectionTitle>Meals</SectionTitle>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
-            {meals.map((meal) => (
-              <Box key={meal.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Chip label={meal.meal_type} size="small" sx={{ textTransform: "capitalize", minWidth: 80 }} />
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  {meal.description}
-                </Typography>
-                <IconButton size="small" onClick={() => handleDeleteMeal(meal.id)}>
-                  <DeleteRoundedIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ))}
-          </Box>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-              {mealTypes.map((t) => (
-                <Chip
-                  key={t}
-                  label={t}
-                  size="small"
-                  onClick={() => setNewMealType(t)}
-                  variant={newMealType === t ? "filled" : "outlined"}
-                  color={newMealType === t ? "primary" : "default"}
-                  sx={{ textTransform: "capitalize" }}
-                />
-              ))}
-            </Box>
-            <Box sx={{ display: "flex", gap: 1, width: "100%" }}>
-              <TextField
-                size="small"
-                placeholder="What did you eat?"
-                value={newMealDesc}
-                onChange={(e) => setNewMealDesc(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddMeal()}
-                fullWidth
-              />
-              <IconButton onClick={handleAddMeal} disabled={!newMealDesc.trim()} color="primary">
-                <AddRoundedIcon />
-              </IconButton>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Activities */}
-      <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
-        <CardContent>
-          <SectionTitle>Activities</SectionTitle>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
-            {activities.map((act) => (
-              <Box key={act.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Chip label={act.activity_type} size="small" sx={{ textTransform: "capitalize", minWidth: 80 }} />
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  {act.description}
-                  {act.duration_minutes ? ` · ${act.duration_minutes}min` : ""}
-                </Typography>
-                <IconButton size="small" onClick={() => handleDeleteActivity(act.id)}>
-                  <DeleteRoundedIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ))}
-          </Box>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
-            {activityTypes.map((t) => (
-              <Chip
-                key={t}
-                label={t}
-                size="small"
-                onClick={() => setNewActivityType(t)}
-                variant={newActivityType === t ? "filled" : "outlined"}
-                color={newActivityType === t ? "primary" : "default"}
-                sx={{ textTransform: "capitalize" }}
-              />
-            ))}
-          </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <TextField
-              size="small"
-              placeholder="What did you do?"
-              value={newActivityDesc}
-              onChange={(e) => setNewActivityDesc(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddActivity()}
-              sx={{ flex: 2 }}
-            />
-            <TextField
-              size="small"
-              placeholder="mins"
-              type="number"
-              value={newActivityDuration}
-              onChange={(e) => setNewActivityDuration(e.target.value)}
-              sx={{ flex: 1 }}
-            />
-            <IconButton onClick={handleAddActivity} disabled={!newActivityDesc.trim()} color="primary">
-              <AddRoundedIcon />
-            </IconButton>
           </Box>
         </CardContent>
       </Card>
