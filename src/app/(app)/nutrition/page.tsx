@@ -35,14 +35,13 @@ import {
   deleteMeal,
   getDailyTargets,
   getFoodLibrary,
-  getMealPrepBatches,
   getMealsWithMacrosForDate,
-  saveMealPrepBatch,
   upsertDailyTargets,
 } from "@/lib/supabase/queries/nutrition";
 import { useEffect, useRef, useState } from "react";
 
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -170,18 +169,21 @@ const NutritionPage = () => {
   const [libForm, setLibForm] = useState<AddFoodLibraryItemData>({ name: "" });
   const [savingLib, setSavingLib] = useState(false);
 
-  const [batchName, setBatchName] = useState("");
+  const [recipeOpen, setRecipeOpen] = useState(false);
+  const [recipeName, setRecipeName] = useState("");
+  const [recipeDescription, setRecipeDescription] = useState("");
+  const [recipeDescGenerating, setRecipeDescGenerating] = useState(false);
+  const [recipeCategory, setRecipeCategory] = useState("");
+  const [recipeWeightG, setRecipeWeightG] = useState("");
+  const [recipeKcal, setRecipeKcal] = useState("");
+  const [recipeProtein, setRecipeProtein] = useState("");
+  const [recipeCarbs, setRecipeCarbs] = useState("");
+  const [recipeFat, setRecipeFat] = useState("");
+  const [recipeSaving, setRecipeSaving] = useState(false);
+
   const [batchIngredients, setBatchIngredients] = useState<BatchIngredient[]>([emptyIngredient()]);
   const [batchCookedWeight, setBatchCookedWeight] = useState("");
   const [batchServings, setBatchServings] = useState("");
-  const [batchSaving, setBatchSaving] = useState(false);
-  const [batchResult, setBatchResult] = useState<{
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    weight_g: number;
-  } | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -484,7 +486,7 @@ const NutritionPage = () => {
     }
   };
 
-  const calcBatchResult = () => {
+  const handleCalcFromIngredients = () => {
     const totalCal = batchIngredients.reduce((s, i) => s + (parseFloat(i.calories) || 0), 0);
     const totalPro = batchIngredients.reduce((s, i) => s + (parseFloat(i.protein) || 0), 0);
     const totalCar = batchIngredients.reduce((s, i) => s + (parseFloat(i.carbs) || 0), 0);
@@ -492,54 +494,89 @@ const NutritionPage = () => {
     const servCount = parseInt(batchServings) || 1;
     const cookWeight = parseFloat(batchCookedWeight) || 0;
 
-    setBatchResult({
-      calories: Math.round(totalCal / servCount),
-      protein: Math.round((totalPro / servCount) * 10) / 10,
-      carbs: Math.round((totalCar / servCount) * 10) / 10,
-      fat: Math.round((totalFat / servCount) * 10) / 10,
-      weight_g: Math.round((cookWeight / servCount) * 10) / 10,
-    });
+    setRecipeKcal(String(Math.round(totalCal / servCount)));
+    setRecipeProtein(String(Math.round((totalPro / servCount) * 10) / 10));
+    setRecipeCarbs(String(Math.round((totalCar / servCount) * 10) / 10));
+    setRecipeFat(String(Math.round((totalFat / servCount) * 10) / 10));
+    if (cookWeight > 0) setRecipeWeightG(String(Math.round((cookWeight / servCount) * 10) / 10));
   };
 
-  const handleSaveBatchToLibrary = async () => {
-    if (!userId || !batchResult || !batchName) return;
-    setBatchSaving(true);
-
-    const totalCal = batchIngredients.reduce((s, i) => s + (parseFloat(i.calories) || 0), 0);
-    const totalPro = batchIngredients.reduce((s, i) => s + (parseFloat(i.protein) || 0), 0);
-    const totalCar = batchIngredients.reduce((s, i) => s + (parseFloat(i.carbs) || 0), 0);
-    const totalFat = batchIngredients.reduce((s, i) => s + (parseFloat(i.fat) || 0), 0);
-
-    await saveMealPrepBatch(userId, {
-      name: batchName,
-      total_calories: totalCal,
-      total_protein: totalPro,
-      total_carbs: totalCar,
-      total_fat: totalFat,
-      total_weight_g: parseFloat(batchCookedWeight) || null,
-      servings: parseInt(batchServings) || null,
-      calories_per_serving: batchResult.calories,
-      protein_per_serving: batchResult.protein,
-      carbs_per_serving: batchResult.carbs,
-      fat_per_serving: batchResult.fat,
-    });
-
-    await addFoodLibraryItem(userId, {
-      name: batchName,
-      serving_weight_g: batchResult.weight_g,
-      calories_per_serving: batchResult.calories,
-      protein_per_serving: batchResult.protein,
-      carbs_per_serving: batchResult.carbs,
-      fat_per_serving: batchResult.fat,
-      is_meal_prep: true,
-    });
-
-    setBatchSaving(false);
-    setBatchName("");
+  const handleCloseRecipeDialog = () => {
+    setRecipeOpen(false);
+    setRecipeName("");
+    setRecipeDescription("");
+    setRecipeDescGenerating(false);
+    setRecipeCategory("");
+    setRecipeWeightG("");
+    setRecipeKcal("");
+    setRecipeProtein("");
+    setRecipeCarbs("");
+    setRecipeFat("");
     setBatchIngredients([emptyIngredient()]);
     setBatchCookedWeight("");
     setBatchServings("");
-    setBatchResult(null);
+  };
+
+  const handleGenerateRecipeDesc = async () => {
+    if (!recipeName.trim()) return;
+    setRecipeDescGenerating(true);
+    const res = await fetch("/api/meals/estimate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "recipe",
+        recipe: {
+          name: recipeName.trim(),
+          calories: recipeKcal,
+          protein: recipeProtein,
+          carbs: recipeCarbs,
+          fat: recipeFat,
+          weight_g: recipeWeightG,
+          category: recipeCategory,
+        },
+      }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { description: string };
+      setRecipeDescription(data.description);
+    }
+    setRecipeDescGenerating(false);
+  };
+
+  const handleSaveRecipe = async () => {
+    if (!userId || !recipeName.trim()) return;
+    setRecipeSaving(true);
+
+    const wt = recipeWeightG ? parseFloat(recipeWeightG) : null;
+    const cal = recipeKcal ? parseInt(recipeKcal) : null;
+    const pro = recipeProtein ? parseFloat(recipeProtein) : null;
+    const carb = recipeCarbs ? parseFloat(recipeCarbs) : null;
+    const fat = recipeFat ? parseFloat(recipeFat) : null;
+
+    const item = await addFoodLibraryItem(userId, {
+      name: recipeName.trim(),
+      serving_description: recipeDescription.trim() || null,
+      category: recipeCategory || null,
+      serving_weight_g: wt,
+      calories_per_serving: cal,
+      protein_per_serving: pro,
+      carbs_per_serving: carb,
+      fat_per_serving: fat,
+      is_meal_prep: true,
+      ...(wt && wt > 0
+        ? {
+            calories_per_100g: cal != null ? Math.round((cal / wt) * 100) : null,
+            protein_per_100g: pro != null ? Math.round((pro / wt) * 1000) / 10 : null,
+            carbs_per_100g: carb != null ? Math.round((carb / wt) * 1000) / 10 : null,
+            fat_per_100g: fat != null ? Math.round((fat / wt) * 1000) / 10 : null,
+          }
+        : {}),
+    });
+
+    if (item) setLibrary((prev) => [...prev, item]);
+
+    setRecipeSaving(false);
+    handleCloseRecipeDialog();
   };
 
   const filteredLibrary = library.filter((item) => {
@@ -559,7 +596,7 @@ const NutritionPage = () => {
       <Tabs value={tab} onChange={(_, v: number) => setTab(v)} sx={{ px: 2, mt: 1 }} variant="fullWidth">
         <Tab label="Today" />
         <Tab label="Library" />
-        <Tab label="Batch" />
+        <Tab label="Recipes" />
       </Tabs>
 
       {tab === 0 && (
@@ -819,170 +856,76 @@ const NutritionPage = () => {
 
       {tab === 2 && (
         <Box sx={{ px: 2, pt: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
-            Batch meal prep calculator
-          </Typography>
-
-          <TextField
-            fullWidth
-            size="small"
-            label="Meal name"
-            value={batchName}
-            onChange={(e) => setBatchName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-            Ingredients
-          </Typography>
-
-          {batchIngredients.map((ing, idx) => (
-            <Box key={idx} sx={{ display: "flex", gap: 1, mb: 1, flexWrap: "wrap", alignItems: "center" }}>
-              <TextField
-                size="small"
-                label="Name"
-                value={ing.name}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], name: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 120 }}
-              />
-              <TextField
-                size="small"
-                label="g"
-                type="number"
-                value={ing.weight_g}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], weight_g: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 64 }}
-              />
-              <TextField
-                size="small"
-                label="kcal"
-                type="number"
-                value={ing.calories}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], calories: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 72 }}
-              />
-              <TextField
-                size="small"
-                label="P"
-                type="number"
-                value={ing.protein}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], protein: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 60 }}
-              />
-              <TextField
-                size="small"
-                label="C"
-                type="number"
-                value={ing.carbs}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], carbs: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 60 }}
-              />
-              <TextField
-                size="small"
-                label="F"
-                type="number"
-                value={ing.fat}
-                onChange={(e) => {
-                  const next = [...batchIngredients];
-                  next[idx] = { ...next[idx], fat: e.target.value };
-                  setBatchIngredients(next);
-                }}
-                sx={{ width: 60 }}
-              />
-              {batchIngredients.length > 1 && (
-                <IconButton
-                  size="small"
-                  onClick={() => setBatchIngredients((prev) => prev.filter((_, i) => i !== idx))}
-                >
-                  <DeleteOutlineRoundedIcon fontSize="small" />
-                </IconButton>
-              )}
-            </Box>
-          ))}
-
           <Button
+            variant="outlined"
             size="small"
             startIcon={<AddRoundedIcon />}
-            onClick={() => setBatchIngredients((prev) => [...prev, emptyIngredient()])}
+            onClick={() => setRecipeOpen(true)}
             sx={{ mb: 2 }}
           >
-            Add ingredient
+            Add recipe
           </Button>
 
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <TextField
-              size="small"
-              label="Cooked weight (g)"
-              type="number"
-              value={batchCookedWeight}
-              onChange={(e) => setBatchCookedWeight(e.target.value)}
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              size="small"
-              label="Servings"
-              type="number"
-              value={batchServings}
-              onChange={(e) => setBatchServings(e.target.value)}
-              sx={{ flex: 1 }}
-            />
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: "block" }}>
+            Add to
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+            {MEAL_TYPES.map((t) => (
+              <Chip
+                key={t}
+                label={t}
+                size="small"
+                variant={quickAddMealType === t ? "filled" : "outlined"}
+                onClick={() => setQuickAddMealType(t)}
+                sx={{ textTransform: "capitalize" }}
+              />
+            ))}
           </Box>
 
-          <Button variant="outlined" onClick={calcBatchResult} sx={{ mb: 2 }}>
-            Calculate
-          </Button>
-
-          {batchResult && (
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: "action.hover",
-                mb: 2,
-              }}
-            >
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                Per serving
-              </Typography>
-              <Typography variant="body2">
-                {batchResult.calories} kcal · P {batchResult.protein}g · C {batchResult.carbs}g · F {batchResult.fat}g
-              </Typography>
-              {batchResult.weight_g > 0 && (
-                <Typography variant="caption" color="text.secondary">
-                  ~{batchResult.weight_g}g per serving
-                </Typography>
-              )}
-
-              <Button
-                variant="contained"
-                size="small"
-                sx={{ mt: 1.5, display: "block" }}
-                disabled={!batchName || batchSaving}
-                onClick={handleSaveBatchToLibrary}
-              >
-                {batchSaving ? "Saving…" : "Save to library"}
-              </Button>
-            </Box>
+          {library.filter((i) => i.is_meal_prep).length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", pt: 4 }}>
+              No recipes yet
+            </Typography>
+          ) : (
+            library
+              .filter((i) => i.is_meal_prep)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((item) => (
+                <Box
+                  key={item.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    py: 1.5,
+                    borderBottom: "0.5px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {item.name}
+                    </Typography>
+                    {item.serving_description && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                        {item.serving_description}
+                      </Typography>
+                    )}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      {item.calories_per_serving ?? "–"} kcal
+                      {item.protein_per_serving != null ? ` · P ${item.protein_per_serving}g` : ""}
+                      {item.carbs_per_serving != null ? ` · C ${item.carbs_per_serving}g` : ""}
+                      {item.fat_per_serving != null ? ` · F ${item.fat_per_serving}g` : ""}
+                      {item.serving_weight_g != null ? ` · ${item.serving_weight_g}g` : ""}
+                    </Typography>
+                  </Box>
+                  <Button size="small" onClick={() => handleQuickAddToToday(item)}>
+                    Add
+                  </Button>
+                  <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)}>
+                    <DeleteOutlineRoundedIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))
           )}
         </Box>
       )}
@@ -1412,6 +1355,228 @@ const NutritionPage = () => {
             <Button onClick={() => setTargetsOpen(false)}>Cancel</Button>
             <Button variant="contained" onClick={handleSaveTargets}>
               Save
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={recipeOpen} onClose={handleCloseRecipeDialog} fullWidth maxWidth="xs">
+        <DialogTitle>Add recipe</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
+            <TextField
+              size="small"
+              label="Recipe name *"
+              fullWidth
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              autoFocus
+            />
+            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+              <TextField
+                size="small"
+                label="Description"
+                fullWidth
+                placeholder="e.g. High-protein meal prep, great with rice"
+                value={recipeDescription}
+                onChange={(e) => setRecipeDescription(e.target.value)}
+                disabled={recipeDescGenerating}
+              />
+              <IconButton
+                size="small"
+                onClick={() => void handleGenerateRecipeDesc()}
+                disabled={!recipeName.trim() || recipeDescGenerating}
+                title="Generate description"
+                sx={{ mt: 0.5, flexShrink: 0 }}
+              >
+                {recipeDescGenerating ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <AutoAwesomeRoundedIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Box>
+            <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+              {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                <Chip
+                  key={cat}
+                  label={cat}
+                  size="small"
+                  variant={recipeCategory === cat ? "filled" : "outlined"}
+                  onClick={() => setRecipeCategory((prev) => (prev === cat ? "" : cat))}
+                />
+              ))}
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Per serving
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="Weight (g)"
+                type="number"
+                value={recipeWeightG}
+                onChange={(e) => setRecipeWeightG(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="kcal"
+                type="number"
+                value={recipeKcal}
+                onChange={(e) => setRecipeKcal(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="Protein (g)"
+                type="number"
+                value={recipeProtein}
+                onChange={(e) => setRecipeProtein(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Carbs (g)"
+                type="number"
+                value={recipeCarbs}
+                onChange={(e) => setRecipeCarbs(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Fat (g)"
+                type="number"
+                value={recipeFat}
+                onChange={(e) => setRecipeFat(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{ border: "0.5px solid", borderColor: "divider", borderRadius: 1, "&:before": { display: "none" } }}
+            >
+              <AccordionSummary expandIcon={<ExpandMoreRoundedIcon fontSize="small" />}>
+                <Typography variant="caption" color="text.secondary">
+                  Calculate from ingredients
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0 }}>
+                {batchIngredients.map((ing, idx) => (
+                  <Box key={idx} sx={{ display: "flex", gap: 0.75, mb: 1, flexWrap: "wrap", alignItems: "center" }}>
+                    <TextField
+                      size="small"
+                      label="Name"
+                      value={ing.name}
+                      onChange={(e) => {
+                        const next = [...batchIngredients];
+                        next[idx] = { ...next[idx], name: e.target.value };
+                        setBatchIngredients(next);
+                      }}
+                      sx={{ width: 110 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="kcal"
+                      type="number"
+                      value={ing.calories}
+                      onChange={(e) => {
+                        const next = [...batchIngredients];
+                        next[idx] = { ...next[idx], calories: e.target.value };
+                        setBatchIngredients(next);
+                      }}
+                      sx={{ width: 66 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="P"
+                      type="number"
+                      value={ing.protein}
+                      onChange={(e) => {
+                        const next = [...batchIngredients];
+                        next[idx] = { ...next[idx], protein: e.target.value };
+                        setBatchIngredients(next);
+                      }}
+                      sx={{ width: 56 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="C"
+                      type="number"
+                      value={ing.carbs}
+                      onChange={(e) => {
+                        const next = [...batchIngredients];
+                        next[idx] = { ...next[idx], carbs: e.target.value };
+                        setBatchIngredients(next);
+                      }}
+                      sx={{ width: 56 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="F"
+                      type="number"
+                      value={ing.fat}
+                      onChange={(e) => {
+                        const next = [...batchIngredients];
+                        next[idx] = { ...next[idx], fat: e.target.value };
+                        setBatchIngredients(next);
+                      }}
+                      sx={{ width: 56 }}
+                    />
+                    {batchIngredients.length > 1 && (
+                      <IconButton
+                        size="small"
+                        onClick={() => setBatchIngredients((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
+                <Button
+                  size="small"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => setBatchIngredients((prev) => [...prev, emptyIngredient()])}
+                  sx={{ mb: 1.5 }}
+                >
+                  Add ingredient
+                </Button>
+                <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+                  <TextField
+                    size="small"
+                    label="Cooked weight (g)"
+                    type="number"
+                    value={batchCookedWeight}
+                    onChange={(e) => setBatchCookedWeight(e.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Servings"
+                    type="number"
+                    value={batchServings}
+                    onChange={(e) => setBatchServings(e.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                </Box>
+                <Button variant="outlined" size="small" onClick={handleCalcFromIngredients}>
+                  Calculate → fill above
+                </Button>
+              </AccordionDetails>
+            </Accordion>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
+            <Button onClick={handleCloseRecipeDialog}>Cancel</Button>
+            <Button
+              variant="contained"
+              disabled={!recipeName.trim() || recipeSaving}
+              onClick={() => void handleSaveRecipe()}
+            >
+              {recipeSaving ? "Saving…" : "Save"}
             </Button>
           </Box>
         </DialogContent>

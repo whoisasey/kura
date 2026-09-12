@@ -5,7 +5,16 @@ const anthropic = new Anthropic();
 interface EstimateRequest {
   image?: string;
   text?: string;
-  type: "meal" | "label" | "describe";
+  type: "meal" | "label" | "describe" | "recipe";
+  recipe?: {
+    name: string;
+    calories?: string;
+    protein?: string;
+    carbs?: string;
+    fat?: string;
+    weight_g?: string;
+    category?: string;
+  };
 }
 
 interface EstimateResult {
@@ -28,10 +37,44 @@ const MACRO_JSON_PROMPT =
 
 export const POST = async (request: Request): Promise<Response> => {
   const body = (await request.json()) as unknown;
-  const { image, text, type } = body as EstimateRequest;
+  const { image, text, type, recipe } = body as EstimateRequest;
 
-  if (!type || (type !== "describe" && !image)) {
+  if (!type || (type !== "describe" && type !== "recipe" && !image)) {
     return Response.json({ error: "missing_fields" }, { status: 400 });
+  }
+
+  if (type === "recipe") {
+    if (!recipe?.name) return Response.json({ error: "missing_fields" }, { status: 400 });
+
+    const macros = [
+      recipe.calories ? `${recipe.calories} kcal` : null,
+      recipe.protein ? `${recipe.protein}g protein` : null,
+      recipe.carbs ? `${recipe.carbs}g carbs` : null,
+      recipe.fat ? `${recipe.fat}g fat` : null,
+      recipe.weight_g ? `${recipe.weight_g}g per serving` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const context = [recipe.category, macros].filter(Boolean).join(" · ");
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 100,
+        messages: [
+          {
+            role: "user",
+            content: `Write a single short description (max 12 words) for a meal prep recipe called "${recipe.name}"${context ? ` (${context})` : ""}. Be practical and appetizing — describe the dish style, not the macros. Return plain text only, no quotes.`,
+          },
+        ],
+      });
+      const description = message.content[0].type === "text" ? message.content[0].text.trim() : "";
+      return Response.json({ description });
+    } catch (err) {
+      console.error("[meals/estimate] recipe description failed:", err);
+      return Response.json({ error: "estimate_failed" }, { status: 500 });
+    }
   }
 
   let raw: string;
