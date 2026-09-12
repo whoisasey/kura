@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Autocomplete,
   Box,
   Button,
@@ -19,6 +22,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type {
+  AddFoodLibraryItemData,
+  DailyTargets,
+  FoodLibraryItem,
+  MealWithMacros,
+} from "@/lib/supabase/queries/nutrition";
 import {
   addFoodLibraryItem,
   addMealWithMacros,
@@ -26,16 +35,10 @@ import {
   deleteMeal,
   getDailyTargets,
   getFoodLibrary,
-  getMealsWithMacrosForDate,
   getMealPrepBatches,
+  getMealsWithMacrosForDate,
   saveMealPrepBatch,
   upsertDailyTargets,
-} from "@/lib/supabase/queries/nutrition";
-import type {
-  AddFoodLibraryItemData,
-  DailyTargets,
-  FoodLibraryItem,
-  MealWithMacros,
 } from "@/lib/supabase/queries/nutrition";
 import { useEffect, useRef, useState } from "react";
 
@@ -43,13 +46,27 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { SelectChangeEvent } from "@mui/material/Select";
 import { createClient } from "@/lib/supabase/client";
 import { getOrCreateTodayEntry } from "@/lib/supabase/queries/journal";
 import { useRouter } from "next/navigation";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
-const CATEGORIES = ["All", "Protein", "Eggs", "Dairy", "Fruit", "Grain", "Bread", "Noodles", "Vegetable", "Sauce", "Snack", "Other"];
+const CATEGORIES = [
+  "All",
+  "Protein",
+  "Dairy",
+  "Fruit",
+  "Grain",
+  "Bread",
+  "Noodles",
+  "Vegetable",
+  "Sauce",
+  "Snack",
+  "Soup",
+  "Other",
+];
 
 const formatDate = (date: Date): string => date.toLocaleDateString("en-CA");
 
@@ -292,19 +309,11 @@ const NutritionPage = () => {
       const saved = await addMealWithMacros(entry.id, {
         meal_type: mealType,
         description: selectedLibItem.name,
-        calories: selectedLibItem.calories_per_serving
-          ? Math.round(selectedLibItem.calories_per_serving * mult)
-          : null,
-        protein: selectedLibItem.protein_per_serving
-          ? selectedLibItem.protein_per_serving * mult
-          : null,
-        carbs: selectedLibItem.carbs_per_serving
-          ? selectedLibItem.carbs_per_serving * mult
-          : null,
+        calories: selectedLibItem.calories_per_serving ? Math.round(selectedLibItem.calories_per_serving * mult) : null,
+        protein: selectedLibItem.protein_per_serving ? selectedLibItem.protein_per_serving * mult : null,
+        carbs: selectedLibItem.carbs_per_serving ? selectedLibItem.carbs_per_serving * mult : null,
         fat: selectedLibItem.fat_per_serving ? selectedLibItem.fat_per_serving * mult : null,
-        weight_g: selectedLibItem.serving_weight_g
-          ? selectedLibItem.serving_weight_g * mult
-          : null,
+        weight_g: selectedLibItem.serving_weight_g ? selectedLibItem.serving_weight_g * mult : null,
         food_library_item_id: selectedLibItem.id,
       });
       if (saved) setMeals((prev) => [...prev, saved]);
@@ -350,11 +359,22 @@ const NutritionPage = () => {
     resetMealDialog();
   };
 
-  const applyEstimate = (data: { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number }) => {
+  const applyEstimate = (data: {
+    name: string;
+    description: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    weight_g?: number;
+  }) => {
     setPhotoEstimate({ ...data, weight_g: data.weight_g ?? 0 });
     const nameLower = data.name.toLowerCase();
     const similar = library.filter((item) => {
-      const itemWords = item.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+      const itemWords = item.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 3);
       return itemWords.some((word) => nameLower.includes(word));
     });
     setPhotoSimilarItems(similar);
@@ -376,7 +396,15 @@ const NutritionPage = () => {
         body: JSON.stringify({ image: base64, type: "meal" }),
       });
       if (res.ok) {
-        const data = (await res.json()) as { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number };
+        const data = (await res.json()) as {
+          name: string;
+          description: string;
+          calories: number;
+          protein: number;
+          carbs: number;
+          fat: number;
+          weight_g?: number;
+        };
         applyEstimate(data);
       }
       setPhotoAnalyzing(false);
@@ -396,7 +424,15 @@ const NutritionPage = () => {
       body: JSON.stringify({ text: describeQuery.trim(), type: "describe" }),
     });
     if (res.ok) {
-      const data = (await res.json()) as { name: string; description: string; calories: number; protein: number; carbs: number; fat: number; weight_g?: number };
+      const data = (await res.json()) as {
+        name: string;
+        description: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        weight_g?: number;
+      };
       applyEstimate(data);
     }
     setDescribeAnalyzing(false);
@@ -508,9 +544,7 @@ const NutritionPage = () => {
 
   const filteredLibrary = library.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(libSearch.toLowerCase());
-    const matchCat =
-      libCategory === "All" ||
-      (item.category?.toLowerCase() === libCategory.toLowerCase());
+    const matchCat = libCategory === "All" || item.category?.toLowerCase() === libCategory.toLowerCase();
     return matchSearch && matchCat;
   });
 
@@ -522,12 +556,7 @@ const NutritionPage = () => {
         </Typography>
       </Box>
 
-      <Tabs
-        value={tab}
-        onChange={(_, v: number) => setTab(v)}
-        sx={{ px: 2, mt: 1 }}
-        variant="fullWidth"
-      >
+      <Tabs value={tab} onChange={(_, v: number) => setTab(v)} sx={{ px: 2, mt: 1 }} variant="fullWidth">
         <Tab label="Today" />
         <Tab label="Library" />
         <Tab label="Batch" />
@@ -614,48 +643,68 @@ const NutritionPage = () => {
               {MEAL_TYPES.map((type) => {
                 const group = mealsByType[type];
                 if (group.length === 0) return null;
+                const groupCalories = group.reduce((s, m) => s + (m.calories ?? 0), 0);
                 return (
-                  <Box key={type} sx={{ mb: 2 }}>
-                    <Typography
-                      variant="overline"
-                      color="text.secondary"
-                      sx={{ textTransform: "capitalize" }}
-                    >
-                      {type}
-                    </Typography>
-                    {group.map((meal) => (
-                      <Box
-                        key={meal.id}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          py: 1,
-                          borderBottom: "0.5px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" fontWeight={500}>
-                            {meal.description}
-                            {meal.weight_g ? (
-                              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                                {meal.weight_g}g
-                              </Typography>
-                            ) : null}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {meal.calories ?? "–"} kcal
-                            {meal.protein != null ? ` · P ${meal.protein}g` : ""}
-                            {meal.carbs != null ? ` · C ${meal.carbs}g` : ""}
-                            {meal.fat != null ? ` · F ${meal.fat}g` : ""}
-                          </Typography>
-                        </Box>
-                        <IconButton size="small" onClick={() => handleDeleteMeal(meal.id)}>
-                          <DeleteOutlineRoundedIcon fontSize="small" />
-                        </IconButton>
+                  <Accordion
+                    key={type}
+                    defaultExpanded={false}
+                    disableGutters
+                    elevation={0}
+                    sx={{
+                      border: "0.5px solid",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      mb: 1.5,
+                      "&:before": { display: "none" },
+                      "&.Mui-expanded": { borderRadius: 2 },
+                    }}
+                  >
+                    <AccordionSummary expandIcon={<ExpandMoreRoundedIcon fontSize="small" />}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%", pr: 1 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ textTransform: "capitalize" }}>
+                          {type}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {groupCalories} kcal
+                        </Typography>
                       </Box>
-                    ))}
-                  </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 0, pb: 1 }}>
+                      {group.map((meal) => (
+                        <Box
+                          key={meal.id}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            py: 1,
+                            borderBottom: "0.5px solid",
+                            borderColor: "divider",
+                            "&:last-child": { borderBottom: "none" },
+                          }}
+                        >
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" fontWeight={500}>
+                              {meal.description}
+                              {meal.weight_g ? (
+                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                                  {meal.weight_g}g
+                                </Typography>
+                              ) : null}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {meal.calories ?? "–"} kcal
+                              {meal.protein != null ? ` · P ${meal.protein}g` : ""}
+                              {meal.carbs != null ? ` · C ${meal.carbs}g` : ""}
+                              {meal.fat != null ? ` · F ${meal.fat}g` : ""}
+                            </Typography>
+                          </Box>
+                          <IconButton size="small" onClick={() => handleDeleteMeal(meal.id)}>
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))}
+                    </AccordionDetails>
+                  </Accordion>
                 );
               })}
 
@@ -667,11 +716,7 @@ const NutritionPage = () => {
             </>
           )}
 
-          <Fab
-            color="primary"
-            sx={{ position: "fixed", bottom: 80, right: 20 }}
-            onClick={() => setAddMealOpen(true)}
-          >
+          <Fab color="primary" sx={{ position: "fixed", bottom: 80, right: 20 }} onClick={() => setAddMealOpen(true)}>
             <AddRoundedIcon />
           </Fab>
         </Box>
@@ -942,20 +987,10 @@ const NutritionPage = () => {
         </Box>
       )}
 
-      <Dialog
-        open={addMealOpen}
-        onClose={resetMealDialog}
-        fullWidth
-        maxWidth="xs"
-      >
+      <Dialog open={addMealOpen} onClose={resetMealDialog} fullWidth maxWidth="xs">
         <DialogTitle>Add meal</DialogTitle>
         <DialogContent>
-          <Tabs
-            value={addMealTab}
-            onChange={(_, v: number) => setAddMealTab(v)}
-            sx={{ mb: 2 }}
-            variant="fullWidth"
-          >
+          <Tabs value={addMealTab} onChange={(_, v: number) => setAddMealTab(v)} sx={{ mb: 2 }} variant="fullWidth">
             <Tab label="Manual" />
             <Tab label="Library" />
             <Tab label="AI" />
@@ -1002,10 +1037,7 @@ const NutritionPage = () => {
                       autoFocus={idx === 0}
                     />
                     {mealItems.length > 1 && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setMealItems((prev) => prev.filter((_, i) => i !== idx))}
-                      >
+                      <IconButton size="small" onClick={() => setMealItems((prev) => prev.filter((_, i) => i !== idx))}>
                         <DeleteOutlineRoundedIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -1125,9 +1157,7 @@ const NutritionPage = () => {
                   setSelectedLibItem(val);
                   setLibServings("1");
                 }}
-                renderInput={(params) => (
-                  <TextField {...params} placeholder="Select food…" />
-                )}
+                renderInput={(params) => <TextField {...params} placeholder="Select food…" />}
                 renderOption={(props, opt) => (
                   <li {...props} key={opt.id}>
                     <Box>
@@ -1189,16 +1219,15 @@ const NutritionPage = () => {
                 style={{ display: "none" }}
                 onChange={handlePhotoSelect}
               />
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => fileInputRef.current?.click()}
-                sx={{ mb: 1.5 }}
-              >
+              <Button variant="outlined" fullWidth onClick={() => fileInputRef.current?.click()} sx={{ mb: 1.5 }}>
                 Take photo or choose image
               </Button>
 
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 1.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", textAlign: "center", mb: 1.5 }}
+              >
                 or describe what you have
               </Typography>
 
@@ -1209,7 +1238,9 @@ const NutritionPage = () => {
                   fullWidth
                   value={describeQuery}
                   onChange={(e) => setDescribeQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") void handleDescribeEstimate(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleDescribeEstimate();
+                  }}
                   disabled={describeAnalyzing}
                 />
                 <Button
@@ -1340,27 +1371,15 @@ const NutritionPage = () => {
             <Button onClick={resetMealDialog}>Cancel</Button>
             {addMealTab === 2 && photoEstimate ? (
               <>
-                <Button
-                  variant="outlined"
-                  disabled={savingMeal}
-                  onClick={() => void handleSaveMeal("log")}
-                >
+                <Button variant="outlined" disabled={savingMeal} onClick={() => void handleSaveMeal("log")}>
                   {savingMeal ? "Saving…" : "Log once"}
                 </Button>
-                <Button
-                  variant="contained"
-                  disabled={savingMeal}
-                  onClick={() => void handleSaveMeal("library")}
-                >
+                <Button variant="contained" disabled={savingMeal} onClick={() => void handleSaveMeal("library")}>
                   {savingMeal ? "Saving…" : "Add to library"}
                 </Button>
               </>
             ) : (
-              <Button
-                variant="contained"
-                disabled={savingMeal}
-                onClick={() => void handleSaveMeal()}
-              >
+              <Button variant="contained" disabled={savingMeal} onClick={() => void handleSaveMeal()}>
                 {savingMeal ? "Saving…" : "Save"}
               </Button>
             )}
@@ -1421,9 +1440,7 @@ const NutritionPage = () => {
               fullWidth
               displayEmpty
               value={libForm.category ?? ""}
-              onChange={(e: SelectChangeEvent) =>
-                setLibForm((f) => ({ ...f, category: e.target.value || null }))
-              }
+              onChange={(e: SelectChangeEvent) => setLibForm((f) => ({ ...f, category: e.target.value || null }))}
             >
               <MenuItem value="">
                 <em>Category</em>
@@ -1513,11 +1530,7 @@ const NutritionPage = () => {
           </Box>
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
             <Button onClick={() => setAddLibOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              disabled={!libForm.name || savingLib}
-              onClick={handleAddLibItem}
-            >
+            <Button variant="contained" disabled={!libForm.name || savingLib} onClick={handleAddLibItem}>
               {savingLib ? "Saving…" : "Save"}
             </Button>
           </Box>
