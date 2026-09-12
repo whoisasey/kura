@@ -1,9 +1,11 @@
 "use client";
 
-import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, LinearProgress, Skeleton, Typography } from "@mui/material";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
-import { getActivitiesForEntry, getMealsForEntry } from "@/lib/supabase/queries/journal";
+import { getActivitiesForEntry } from "@/lib/supabase/queries/journal";
+import { getDailyTargets, getMealsWithMacrosForDate } from "@/lib/supabase/queries/nutrition";
+import type { DailyTargets } from "@/lib/supabase/queries/nutrition";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
@@ -40,12 +42,6 @@ interface TodayEntry {
   sleep_hours?: number;
   stress_level?: number;
   hydration_level?: number;
-}
-
-interface Meal {
-  id: string;
-  meal_type: string;
-  description: string;
 }
 
 interface Activity {
@@ -114,10 +110,12 @@ const DashboardPage = () => {
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [todayEntry, setTodayEntry] = useState<TodayEntry | null>(null);
   const [weatherReading, setWeatherReading] = useState<WeatherReading | null>(null);
-  const [todayMeals, setTodayMeals] = useState<Meal[]>([]);
   const [todayActivities, setTodayActivities] = useState<Activity[]>([]);
   const [avgCycleLength, setAvgCycleLength] = useState(29);
   const [todayBlockDay, setTodayBlockDay] = useState<BlockDay | null>(null);
+  const [nutritionTargets, setNutritionTargets] = useState<DailyTargets | null>(null);
+  const [totalCalories, setTotalCalories] = useState(0);
+  const [totalProtein, setTotalProtein] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -147,12 +145,16 @@ const DashboardPage = () => {
       if (weather) setWeatherReading(weather);
 
       if (entry?.id) {
-        const [meals, activities] = await Promise.all([
-          getMealsForEntry(entry.id),
+        const today = new Date().toLocaleDateString("en-CA");
+        const [activities, mealsWithMacros, targets] = await Promise.all([
           getActivitiesForEntry(entry.id),
+          getMealsWithMacrosForDate(user.id, today),
+          getDailyTargets(user.id),
         ]);
-        setTodayMeals(meals as Meal[]);
         setTodayActivities(activities as Activity[]);
+        setNutritionTargets(targets);
+        setTotalCalories(mealsWithMacros.reduce((s, m) => s + (m.calories ?? 0), 0));
+        setTotalProtein(mealsWithMacros.reduce((s, m) => s + (m.protein ?? 0), 0));
       }
 
       if (cyc?.period_start) {
@@ -405,34 +407,55 @@ const DashboardPage = () => {
         </Box>
       )}
 
-      {/* Meals summary */}
-      {todayMeals.length > 0 && (
+      {/* Nutrition progress */}
+      {nutritionTargets && (totalCalories > 0 || totalProtein > 0) && (
         <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
           <CardContent>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
               <Typography variant="body2" color="text.secondary">
-                Meals today
+                Nutrition
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ cursor: "pointer", textDecoration: "underline" }}
-                onClick={() => router.push("/journal")}
+                onClick={() => router.push("/nutrition")}
               >
-                Edit
+                Details
               </Typography>
             </Box>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {todayMeals.map((meal) => (
-                <Box key={meal.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Chip label={meal.meal_type} size="small" sx={{ textTransform: "capitalize", minWidth: 72 }} />
-                  <Typography variant="body2" color="text.primary">{meal.description}</Typography>
-                </Box>
-              ))}
+            <Box sx={{ mb: 1.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">Calories</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {totalCalories} / {nutritionTargets.calorie_target}
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min((totalCalories / nutritionTargets.calorie_target) * 100, 100)}
+                sx={{ borderRadius: 2, height: 8 }}
+              />
+            </Box>
+            <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">Protein</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(totalProtein)}g / {nutritionTargets.protein_target}g
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min((totalProtein / nutritionTargets.protein_target) * 100, 100)}
+                color="secondary"
+                sx={{ borderRadius: 2, height: 8 }}
+              />
             </Box>
           </CardContent>
         </Card>
       )}
+
+
 
       {/* Activities summary */}
       {todayActivities.length > 0 && (
