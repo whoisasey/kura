@@ -244,7 +244,7 @@ export const getDailyTargets = async (userId: string): Promise<DailyTargets> => 
   const defaults: DailyTargets = {
     id: "",
     user_id: userId,
-    calorie_target: 1800,
+    calorie_target: 1780,
     protein_target: 120,
     carb_target: null,
     fat_target: null,
