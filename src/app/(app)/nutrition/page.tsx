@@ -77,26 +77,6 @@ const displayDate = (dateStr: string): string => {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-interface MealItem {
-  description: string;
-  weight_g: string;
-  calories: string;
-  protein: string;
-  carbs: string;
-  fat: string;
-  category: string;
-}
-
-const emptyMealItem = (): MealItem => ({
-  description: "",
-  weight_g: "",
-  calories: "",
-  protein: "",
-  carbs: "",
-  fat: "",
-  category: "",
-});
-
 interface BatchIngredient {
   name: string;
   weight_g: string;
@@ -142,12 +122,12 @@ const NutritionPage = () => {
   const [addMealOpen, setAddMealOpen] = useState(false);
   const [addMealTab, setAddMealTab] = useState(0);
   const [mealType, setMealType] = useState("breakfast");
-  const [mealItems, setMealItems] = useState<MealItem[]>([emptyMealItem()]);
   const [selectedLibItem, setSelectedLibItem] = useState<FoodLibraryItem | null>(null);
   const [libServings, setLibServings] = useState("1");
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [describeQuery, setDescribeQuery] = useState("");
   const [describeAnalyzing, setDescribeAnalyzing] = useState(false);
+  const [aiCategory, setAiCategory] = useState("");
   const [photoEstimate, setPhotoEstimate] = useState<null | {
     name: string;
     description: string;
@@ -162,7 +142,7 @@ const NutritionPage = () => {
   const [savingMeal, setSavingMeal] = useState(false);
 
   const [targetsOpen, setTargetsOpen] = useState(false);
-  const [targetForm, setTargetForm] = useState({ calorie_target: "1600", protein_target: "120" });
+  const [targetForm, setTargetForm] = useState({ calorie_target: "1600", protein_target: "120", carb_target: "", fat_target: "" });
 
   const [quickAddMealType, setQuickAddMealType] = useState("breakfast");
   const [addLibOpen, setAddLibOpen] = useState(false);
@@ -228,6 +208,8 @@ const NutritionPage = () => {
 
   const totalCalories = meals.reduce((s, m) => s + (m.calories ?? 0), 0);
   const totalProtein = meals.reduce((s, m) => s + (m.protein ?? 0), 0);
+  const totalCarbs = meals.reduce((s, m) => s + (m.carbs ?? 0), 0);
+  const totalFat = meals.reduce((s, m) => s + (m.fat ?? 0), 0);
   const caloriesRemaining = targets.calorie_target - totalCalories;
 
   const mealsByType = MEAL_TYPES.reduce<Record<string, MealWithMacros[]>>((acc, t) => {
@@ -248,10 +230,10 @@ const NutritionPage = () => {
 
   const resetMealDialog = () => {
     setAddMealOpen(false);
-    setMealItems([emptyMealItem()]);
     setPhotoEstimate(null);
     setPhotoSimilarItems([]);
     setDescribeQuery("");
+    setAiCategory("");
     setSelectedLibItem(null);
     setLibServings("1");
     setSavingMeal(false);
@@ -267,46 +249,7 @@ const NutritionPage = () => {
       return;
     }
 
-    if (addMealTab === 0) {
-      const validItems = mealItems.filter((i) => i.description.trim());
-      for (const item of validItems) {
-        const cal = item.calories ? parseInt(item.calories) : null;
-        const pro = item.protein ? parseFloat(item.protein) : null;
-        const carb = item.carbs ? parseFloat(item.carbs) : null;
-        const fat = item.fat ? parseFloat(item.fat) : null;
-        const wt = item.weight_g ? parseFloat(item.weight_g) : null;
-
-        const saved = await addMealWithMacros(entry.id, {
-          meal_type: mealType,
-          description: item.description.trim(),
-          calories: cal,
-          protein: pro,
-          carbs: carb,
-          fat: fat,
-          weight_g: wt,
-        });
-        if (saved) setMeals((prev) => [...prev, saved]);
-
-        const libItem = await addFoodLibraryItem(userId, {
-          name: item.description.trim(),
-          category: item.category || null,
-          serving_weight_g: wt,
-          calories_per_serving: cal,
-          protein_per_serving: pro,
-          carbs_per_serving: carb,
-          fat_per_serving: fat,
-          ...(wt && wt > 0
-            ? {
-                calories_per_100g: cal != null ? Math.round((cal / wt) * 100) : null,
-                protein_per_100g: pro != null ? Math.round((pro / wt) * 1000) / 10 : null,
-                carbs_per_100g: carb != null ? Math.round((carb / wt) * 1000) / 10 : null,
-                fat_per_100g: fat != null ? Math.round((fat / wt) * 1000) / 10 : null,
-              }
-            : {}),
-        });
-        if (libItem) setLibrary((prev) => [...prev, libItem]);
-      }
-    } else if (addMealTab === 1 && selectedLibItem) {
+    if (addMealTab === 0 && selectedLibItem) {
       const mult = parseFloat(libServings) || 1;
       const saved = await addMealWithMacros(entry.id, {
         meal_type: mealType,
@@ -319,7 +262,7 @@ const NutritionPage = () => {
         food_library_item_id: selectedLibItem.id,
       });
       if (saved) setMeals((prev) => [...prev, saved]);
-    } else if (addMealTab === 2 && photoEstimate) {
+    } else if (addMealTab === 1 && photoEstimate) {
       const wt = photoEstimate.weight_g || null;
       const cal = photoEstimate.calories || null;
       const pro = photoEstimate.protein || null;
@@ -340,6 +283,7 @@ const NutritionPage = () => {
       if (aiMode === "library") {
         const libItem = await addFoodLibraryItem(userId, {
           name: photoEstimate.name,
+          category: aiCategory || null,
           serving_weight_g: wt,
           calories_per_serving: cal,
           protein_per_serving: pro,
@@ -445,6 +389,8 @@ const NutritionPage = () => {
     const updated = await upsertDailyTargets(userId, {
       calorie_target: parseInt(targetForm.calorie_target) || 1600,
       protein_target: parseInt(targetForm.protein_target) || 120,
+      carb_target: targetForm.carb_target ? parseInt(targetForm.carb_target) : null,
+      fat_target: targetForm.fat_target ? parseInt(targetForm.fat_target) : null,
     });
     if (updated) setTargets(updated);
     setTargetsOpen(false);
@@ -661,6 +607,40 @@ const NutritionPage = () => {
                 />
               </Box>
 
+              {targets.carb_target != null && (
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">Carbs</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {Math.round(totalCarbs)}g / {targets.carb_target}g
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min((totalCarbs / targets.carb_target) * 100, 100)}
+                    color="warning"
+                    sx={{ borderRadius: 2, height: 8 }}
+                  />
+                </Box>
+              )}
+
+              {targets.fat_target != null && (
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">Fat</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {Math.round(totalFat)}g / {targets.fat_target}g
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min((totalFat / targets.fat_target) * 100, 100)}
+                    color="error"
+                    sx={{ borderRadius: 2, height: 8 }}
+                  />
+                </Box>
+              )}
+
               <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
                 <Button
                   size="small"
@@ -669,6 +649,8 @@ const NutritionPage = () => {
                     setTargetForm({
                       calorie_target: String(targets.calorie_target),
                       protein_target: String(targets.protein_target),
+                      carb_target: targets.carb_target != null ? String(targets.carb_target) : "",
+                      fat_target: targets.fat_target != null ? String(targets.fat_target) : "",
                     });
                     setTargetsOpen(true);
                   }}
@@ -934,150 +916,11 @@ const NutritionPage = () => {
         <DialogTitle>Add meal</DialogTitle>
         <DialogContent>
           <Tabs value={addMealTab} onChange={(_, v: number) => setAddMealTab(v)} sx={{ mb: 2 }} variant="fullWidth">
-            <Tab label="Manual" />
             <Tab label="Library" />
             <Tab label="AI" />
           </Tabs>
 
           {addMealTab === 0 && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Select
-                size="small"
-                value={mealType}
-                onChange={(e: SelectChangeEvent) => setMealType(e.target.value)}
-                fullWidth
-              >
-                {MEAL_TYPES.map((t) => (
-                  <MenuItem key={t} value={t} sx={{ textTransform: "capitalize" }}>
-                    {t}
-                  </MenuItem>
-                ))}
-              </Select>
-
-              {mealItems.map((item, idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                    pb: 1.5,
-                    borderBottom: idx < mealItems.length - 1 ? "0.5px solid" : "none",
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                    <TextField
-                      size="small"
-                      placeholder="Item (e.g. 2 scrambled eggs)"
-                      fullWidth
-                      value={item.description}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], description: e.target.value };
-                        setMealItems(next);
-                      }}
-                      autoFocus={idx === 0}
-                    />
-                    {mealItems.length > 1 && (
-                      <IconButton size="small" onClick={() => setMealItems((prev) => prev.filter((_, i) => i !== idx))}>
-                        <DeleteOutlineRoundedIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                    {CATEGORIES.filter((c) => c !== "All").map((cat) => (
-                      <Chip
-                        key={cat}
-                        label={cat}
-                        size="small"
-                        variant={item.category === cat ? "filled" : "outlined"}
-                        onClick={() => {
-                          const next = [...mealItems];
-                          next[idx] = { ...next[idx], category: item.category === cat ? "" : cat };
-                          setMealItems(next);
-                        }}
-                      />
-                    ))}
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <TextField
-                      size="small"
-                      label="kcal"
-                      type="number"
-                      value={item.calories}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], calories: e.target.value };
-                        setMealItems(next);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      size="small"
-                      label="g"
-                      type="number"
-                      value={item.weight_g}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], weight_g: e.target.value };
-                        setMealItems(next);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      size="small"
-                      label="P"
-                      type="number"
-                      value={item.protein}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], protein: e.target.value };
-                        setMealItems(next);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      size="small"
-                      label="C"
-                      type="number"
-                      value={item.carbs}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], carbs: e.target.value };
-                        setMealItems(next);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      size="small"
-                      label="F"
-                      type="number"
-                      value={item.fat}
-                      onChange={(e) => {
-                        const next = [...mealItems];
-                        next[idx] = { ...next[idx], fat: e.target.value };
-                        setMealItems(next);
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
-                </Box>
-              ))}
-
-              <Button
-                size="small"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => setMealItems((prev) => [...prev, emptyMealItem()])}
-                sx={{ alignSelf: "flex-start" }}
-              >
-                Add item
-              </Button>
-            </Box>
-          )}
-
-          {addMealTab === 1 && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               <Select
                 size="small"
@@ -1139,7 +982,7 @@ const NutritionPage = () => {
             </Box>
           )}
 
-          {addMealTab === 2 && (
+          {addMealTab === 1 && (
             <Box>
               <Select
                 size="small"
@@ -1174,16 +1017,15 @@ const NutritionPage = () => {
                 or describe what you have
               </Typography>
 
-              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
                 <TextField
                   size="small"
-                  placeholder="e.g. 70g of bakery toast"
+                  placeholder="e.g. 70g of bakery toast with butter and jam"
                   fullWidth
+                  multiline
+                  minRows={3}
                   value={describeQuery}
                   onChange={(e) => setDescribeQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void handleDescribeEstimate();
-                  }}
                   disabled={describeAnalyzing}
                 />
                 <Button
@@ -1191,7 +1033,7 @@ const NutritionPage = () => {
                   size="small"
                   onClick={() => void handleDescribeEstimate()}
                   disabled={!describeQuery.trim() || describeAnalyzing}
-                  sx={{ flexShrink: 0 }}
+                  sx={{ alignSelf: "flex-end" }}
                 >
                   {describeAnalyzing ? <CircularProgress size={16} color="inherit" /> : "Estimate"}
                 </Button>
@@ -1219,6 +1061,17 @@ const NutritionPage = () => {
                       value={photoEstimate.name}
                       onChange={(e) => setPhotoEstimate((p) => p && { ...p, name: e.target.value })}
                     />
+                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                      {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                        <Chip
+                          key={cat}
+                          label={cat}
+                          size="small"
+                          variant={aiCategory === cat ? "filled" : "outlined"}
+                          onClick={() => setAiCategory((prev) => (prev === cat ? "" : cat))}
+                        />
+                      ))}
+                    </Box>
                     <Box sx={{ display: "flex", gap: 1 }}>
                       <TextField
                         size="small"
@@ -1296,7 +1149,7 @@ const NutritionPage = () => {
                             onClick={() => {
                               setSelectedLibItem(item);
                               setLibServings("1");
-                              setAddMealTab(1);
+                              setAddMealTab(0);
                             }}
                           >
                             Use this
@@ -1312,7 +1165,7 @@ const NutritionPage = () => {
 
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
             <Button onClick={resetMealDialog}>Cancel</Button>
-            {addMealTab === 2 && photoEstimate ? (
+            {addMealTab === 1 && photoEstimate ? (
               <>
                 <Button variant="outlined" disabled={savingMeal} onClick={() => void handleSaveMeal("log")}>
                   {savingMeal ? "Saving…" : "Log once"}
@@ -1349,6 +1202,22 @@ const NutritionPage = () => {
               fullWidth
               value={targetForm.protein_target}
               onChange={(e) => setTargetForm((f) => ({ ...f, protein_target: e.target.value }))}
+            />
+            <TextField
+              size="small"
+              label="Carbs target (g)"
+              type="number"
+              fullWidth
+              value={targetForm.carb_target}
+              onChange={(e) => setTargetForm((f) => ({ ...f, carb_target: e.target.value }))}
+            />
+            <TextField
+              size="small"
+              label="Fat target (g)"
+              type="number"
+              fullWidth
+              value={targetForm.fat_target}
+              onChange={(e) => setTargetForm((f) => ({ ...f, fat_target: e.target.value }))}
             />
           </Box>
           <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
