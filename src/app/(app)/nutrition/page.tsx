@@ -847,45 +847,64 @@ const NutritionPage = () => {
               No items yet
             </Typography>
           ) : (
-            filteredLibrary.map((item) => (
-              <Box
-                key={item.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  py: 1.5,
-                  borderBottom: "0.5px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" fontWeight={500}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }, gap: 1.5 }}>
+              {filteredLibrary.map((item) => (
+                <Box
+                  key={item.id}
+                  sx={{
+                    border: "0.5px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    p: 1.5,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.5,
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, mb: 0.25 }}>
                     {item.name}
                   </Typography>
                   {item.brand && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" noWrap>
                       {item.brand}
                     </Typography>
                   )}
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                  <Typography variant="caption" fontWeight={600} color="text.primary">
                     {item.calories_per_serving ?? "–"} kcal
-                    {item.protein_per_serving != null ? ` · P ${item.protein_per_serving}g` : ""}
-                    {item.carbs_per_serving != null ? ` · C ${item.carbs_per_serving}g` : ""}
-                    {item.fat_per_serving != null ? ` · F ${item.fat_per_serving}g` : ""}
-                    {item.serving_description ? ` · ${item.serving_description}` : ""}
                   </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {[
+                      item.protein_per_serving != null ? `P ${item.protein_per_serving}g` : null,
+                      item.carbs_per_serving != null ? `C ${item.carbs_per_serving}g` : null,
+                      item.fat_per_serving != null ? `F ${item.fat_per_serving}g` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Typography>
+                  {item.serving_description && (
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      {item.serving_description}
+                    </Typography>
+                  )}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: "auto", pt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleQuickAddToToday(item)}
+                      sx={{ flex: 1, minWidth: 0, fontSize: "0.75rem", py: 0.5 }}
+                    >
+                      Add
+                    </Button>
+                    <IconButton size="small" onClick={() => openEditLibItem(item)} sx={{ p: 0.5 }}>
+                      <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)} sx={{ p: 0.5 }}>
+                      <DeleteOutlineRoundedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
                 </Box>
-                <Button size="small" onClick={() => handleQuickAddToToday(item)}>
-                  Add
-                </Button>
-                <IconButton size="small" onClick={() => openEditLibItem(item)}>
-                  <EditOutlinedIcon fontSize="small" />
-                </IconButton>
-                <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)}>
-                  <DeleteOutlineRoundedIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            ))
+              ))}
+            </Box>
           )}
         </Box>
       )}
@@ -923,48 +942,63 @@ const NutritionPage = () => {
               No recipes yet
             </Typography>
           ) : (
-            library
-              .filter((i) => i.is_meal_prep)
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((item) => (
-                <Box
-                  key={item.id}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    py: 1.5,
-                    borderBottom: "0.5px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" fontWeight={500}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }, gap: 1.5 }}>
+              {library
+                .filter((i) => i.is_meal_prep)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((item) => (
+                  <Box
+                    key={item.id}
+                    sx={{
+                      border: "0.5px solid",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      p: 1.5,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, mb: 0.25 }}>
                       {item.name}
                     </Typography>
                     {item.serving_description && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         {item.serving_description}
                       </Typography>
                     )}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    <Typography variant="caption" fontWeight={600} color="text.primary">
                       {item.calories_per_serving ?? "–"} kcal
-                      {item.protein_per_serving != null ? ` · P ${item.protein_per_serving}g` : ""}
-                      {item.carbs_per_serving != null ? ` · C ${item.carbs_per_serving}g` : ""}
-                      {item.fat_per_serving != null ? ` · F ${item.fat_per_serving}g` : ""}
                       {item.serving_weight_g != null ? ` · ${item.serving_weight_g}g` : ""}
                     </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {[
+                        item.protein_per_serving != null ? `P ${item.protein_per_serving}g` : null,
+                        item.carbs_per_serving != null ? `C ${item.carbs_per_serving}g` : null,
+                        item.fat_per_serving != null ? `F ${item.fat_per_serving}g` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: "auto", pt: 1 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => handleQuickAddToToday(item)}
+                        sx={{ flex: 1, minWidth: 0, fontSize: "0.75rem", py: 0.5 }}
+                      >
+                        Add
+                      </Button>
+                      <IconButton size="small" onClick={() => openEditLibItem(item)} sx={{ p: 0.5 }}>
+                        <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)} sx={{ p: 0.5 }}>
+                        <DeleteOutlineRoundedIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
                   </Box>
-                  <Button size="small" onClick={() => handleQuickAddToToday(item)}>
-                    Add
-                  </Button>
-                  <IconButton size="small" onClick={() => openEditLibItem(item)}>
-                    <EditOutlinedIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)}>
-                    <DeleteOutlineRoundedIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))
+                ))}
+            </Box>
           )}
         </Box>
       )}
