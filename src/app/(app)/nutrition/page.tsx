@@ -36,6 +36,7 @@ import {
   getDailyTargets,
   getFoodLibrary,
   getMealsWithMacrosForDate,
+  updateFoodLibraryItem,
   upsertDailyTargets,
 } from "@/lib/supabase/queries/nutrition";
 import { useEffect, useRef, useState } from "react";
@@ -45,6 +46,7 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { SelectChangeEvent } from "@mui/material/Select";
 import { createClient } from "@/lib/supabase/client";
@@ -148,6 +150,11 @@ const NutritionPage = () => {
   const [addLibOpen, setAddLibOpen] = useState(false);
   const [libForm, setLibForm] = useState<AddFoodLibraryItemData>({ name: "" });
   const [savingLib, setSavingLib] = useState(false);
+
+  const [editLibOpen, setEditLibOpen] = useState(false);
+  const [editLibItem, setEditLibItem] = useState<FoodLibraryItem | null>(null);
+  const [editLibForm, setEditLibForm] = useState<AddFoodLibraryItemData>({ name: "" });
+  const [savingEditLib, setSavingEditLib] = useState(false);
 
   const [recipeOpen, setRecipeOpen] = useState(false);
   const [recipeName, setRecipeName] = useState("");
@@ -409,6 +416,48 @@ const NutritionPage = () => {
   const handleDeleteLibItem = async (id: string) => {
     await deleteFoodLibraryItem(id);
     setLibrary((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const openEditLibItem = (item: FoodLibraryItem) => {
+    setEditLibItem(item);
+    setEditLibForm({
+      name: item.name,
+      brand: item.brand,
+      category: item.category,
+      serving_description: item.serving_description,
+      serving_weight_g: item.serving_weight_g,
+      calories_per_serving: item.calories_per_serving,
+      protein_per_serving: item.protein_per_serving,
+      carbs_per_serving: item.carbs_per_serving,
+      fat_per_serving: item.fat_per_serving,
+      calories_per_100g: item.calories_per_100g,
+      protein_per_100g: item.protein_per_100g,
+      carbs_per_100g: item.carbs_per_100g,
+      fat_per_100g: item.fat_per_100g,
+    });
+    setEditLibOpen(true);
+  };
+
+  const handleCalcPer100g = () => {
+    const wt = editLibForm.serving_weight_g;
+    if (!wt || wt <= 0) return;
+    setEditLibForm((f) => ({
+      ...f,
+      calories_per_100g: f.calories_per_serving != null ? Math.round((f.calories_per_serving / wt) * 100) : f.calories_per_100g,
+      protein_per_100g: f.protein_per_serving != null ? Math.round((f.protein_per_serving / wt) * 1000) / 10 : f.protein_per_100g,
+      carbs_per_100g: f.carbs_per_serving != null ? Math.round((f.carbs_per_serving / wt) * 1000) / 10 : f.carbs_per_100g,
+      fat_per_100g: f.fat_per_serving != null ? Math.round((f.fat_per_serving / wt) * 1000) / 10 : f.fat_per_100g,
+    }));
+  };
+
+  const handleSaveEditLibItem = async () => {
+    if (!editLibItem) return;
+    setSavingEditLib(true);
+    const updated = await updateFoodLibraryItem(editLibItem.id, editLibForm);
+    if (updated) setLibrary((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    setSavingEditLib(false);
+    setEditLibOpen(false);
+    setEditLibItem(null);
   };
 
   const handleQuickAddToToday = async (item: FoodLibraryItem) => {
@@ -821,12 +870,17 @@ const NutritionPage = () => {
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                     {item.calories_per_serving ?? "–"} kcal
                     {item.protein_per_serving != null ? ` · P ${item.protein_per_serving}g` : ""}
+                    {item.carbs_per_serving != null ? ` · C ${item.carbs_per_serving}g` : ""}
+                    {item.fat_per_serving != null ? ` · F ${item.fat_per_serving}g` : ""}
                     {item.serving_description ? ` · ${item.serving_description}` : ""}
                   </Typography>
                 </Box>
                 <Button size="small" onClick={() => handleQuickAddToToday(item)}>
                   Add
                 </Button>
+                <IconButton size="small" onClick={() => openEditLibItem(item)}>
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
                 <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)}>
                   <DeleteOutlineRoundedIcon fontSize="small" />
                 </IconButton>
@@ -903,6 +957,9 @@ const NutritionPage = () => {
                   <Button size="small" onClick={() => handleQuickAddToToday(item)}>
                     Add
                   </Button>
+                  <IconButton size="small" onClick={() => openEditLibItem(item)}>
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
                   <IconButton size="small" onClick={() => handleDeleteLibItem(item.id)}>
                     <DeleteOutlineRoundedIcon fontSize="small" />
                   </IconButton>
@@ -1446,6 +1503,144 @@ const NutritionPage = () => {
               onClick={() => void handleSaveRecipe()}
             >
               {recipeSaving ? "Saving…" : "Save"}
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editLibOpen} onClose={() => setEditLibOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Edit {editLibItem?.is_meal_prep ? "recipe" : "food item"}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
+            <TextField
+              size="small"
+              label="Name *"
+              fullWidth
+              value={editLibForm.name}
+              onChange={(e) => setEditLibForm((f) => ({ ...f, name: e.target.value }))}
+            />
+            <TextField
+              size="small"
+              label="Brand"
+              fullWidth
+              value={editLibForm.brand ?? ""}
+              onChange={(e) => setEditLibForm((f) => ({ ...f, brand: e.target.value || null }))}
+            />
+            <Select
+              size="small"
+              fullWidth
+              displayEmpty
+              value={editLibForm.category ?? ""}
+              onChange={(e: SelectChangeEvent) => setEditLibForm((f) => ({ ...f, category: e.target.value || null }))}
+            >
+              <MenuItem value=""><em>Category</em></MenuItem>
+              {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                <MenuItem key={c} value={c}>{c}</MenuItem>
+              ))}
+            </Select>
+            <TextField
+              size="small"
+              label="Serving description"
+              fullWidth
+              value={editLibForm.serving_description ?? ""}
+              onChange={(e) => setEditLibForm((f) => ({ ...f, serving_description: e.target.value || null }))}
+            />
+            <Typography variant="caption" color="text.secondary">Per serving</Typography>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="Weight (g)"
+                type="number"
+                value={editLibForm.serving_weight_g ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, serving_weight_g: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="kcal"
+                type="number"
+                value={editLibForm.calories_per_serving ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, calories_per_serving: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="Protein (g)"
+                type="number"
+                value={editLibForm.protein_per_serving ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, protein_per_serving: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Carbs (g)"
+                type="number"
+                value={editLibForm.carbs_per_serving ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, carbs_per_serving: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Fat (g)"
+                type="number"
+                value={editLibForm.fat_per_serving ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, fat_per_serving: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Typography variant="caption" color="text.secondary">Per 100g</Typography>
+              <Button
+                size="small"
+                variant="text"
+                disabled={!editLibForm.serving_weight_g}
+                onClick={handleCalcPer100g}
+                sx={{ fontSize: "0.7rem", py: 0 }}
+              >
+                Calculate from serving
+              </Button>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="kcal"
+                type="number"
+                value={editLibForm.calories_per_100g ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, calories_per_100g: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Protein (g)"
+                type="number"
+                value={editLibForm.protein_per_100g ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, protein_per_100g: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Carbs (g)"
+                type="number"
+                value={editLibForm.carbs_per_100g ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, carbs_per_100g: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Fat (g)"
+                type="number"
+                value={editLibForm.fat_per_100g ?? ""}
+                onChange={(e) => setEditLibForm((f) => ({ ...f, fat_per_100g: e.target.value ? parseFloat(e.target.value) : null }))}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1, mt: 2.5, justifyContent: "flex-end" }}>
+            <Button onClick={() => setEditLibOpen(false)}>Cancel</Button>
+            <Button variant="contained" disabled={!editLibForm.name || savingEditLib} onClick={() => void handleSaveEditLibItem()}>
+              {savingEditLib ? "Saving…" : "Save"}
             </Button>
           </Box>
         </DialogContent>

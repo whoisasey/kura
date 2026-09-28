@@ -205,6 +205,23 @@ export const addFoodLibraryItem = async (
   return row as FoodLibraryItem;
 };
 
+export const updateFoodLibraryItem = async (
+  id: string,
+  data: Partial<AddFoodLibraryItemData>
+): Promise<FoodLibraryItem | null> => {
+  const supabase = createClient();
+
+  const { data: row, error } = await supabase
+    .from("food_library")
+    .update(data)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return null;
+  return row as FoodLibraryItem;
+};
+
 export const deleteFoodLibraryItem = async (id: string): Promise<void> => {
   const supabase = createClient();
   await supabase.from("food_library").delete().eq("id", id);
