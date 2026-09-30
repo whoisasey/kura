@@ -50,7 +50,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { SelectChangeEvent } from "@mui/material/Select";
 import { createClient } from "@/lib/supabase/client";
-import { getOrCreateTodayEntry } from "@/lib/supabase/queries/journal";
+import { getOrCreateEntryForDate } from "@/lib/supabase/queries/journal";
 import { useRouter } from "next/navigation";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
@@ -250,8 +250,8 @@ const NutritionPage = () => {
     if (!userId) return;
     setSavingMeal(true);
 
-    const entry = await getOrCreateTodayEntry(userId);
-    if (!entry || selectedDate !== formatDate(new Date())) {
+    const entry = await getOrCreateEntryForDate(userId, selectedDate);
+    if (!entry) {
       setSavingMeal(false);
       return;
     }
@@ -462,7 +462,7 @@ const NutritionPage = () => {
 
   const handleQuickAddToToday = async (item: FoodLibraryItem) => {
     if (!userId) return;
-    const entry = await getOrCreateTodayEntry(userId);
+    const entry = await getOrCreateEntryForDate(userId, selectedDate);
     if (!entry) return;
 
     const saved = await addMealWithMacros(entry.id, {
@@ -476,9 +476,7 @@ const NutritionPage = () => {
       food_library_item_id: item.id,
     });
 
-    if (saved && selectedDate === formatDate(new Date())) {
-      setMeals((prev) => [...prev, saved]);
-    }
+    if (saved) setMeals((prev) => [...prev, saved]);
   };
 
   const handleCalcFromIngredients = () => {
