@@ -126,6 +126,7 @@ const NutritionPage = () => {
   const [mealType, setMealType] = useState("breakfast");
   const [selectedLibItem, setSelectedLibItem] = useState<FoodLibraryItem | null>(null);
   const [libServings, setLibServings] = useState("1");
+  const [photoCaption, setPhotoCaption] = useState("");
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [describeQuery, setDescribeQuery] = useState("");
   const [describeAnalyzing, setDescribeAnalyzing] = useState(false);
@@ -239,6 +240,7 @@ const NutritionPage = () => {
     setAddMealOpen(false);
     setPhotoEstimate(null);
     setPhotoSimilarItems([]);
+    setPhotoCaption("");
     setDescribeQuery("");
     setAiCategory("");
     setSelectedLibItem(null);
@@ -346,7 +348,7 @@ const NutritionPage = () => {
       const res = await fetch("/api/meals/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, type: "meal" }),
+        body: JSON.stringify({ image: base64, type: "meal", text: photoCaption.trim() || undefined }),
       });
       if (res.ok) {
         const data = (await res.json()) as {
@@ -1094,9 +1096,19 @@ const NutritionPage = () => {
                 style={{ display: "none" }}
                 onChange={handlePhotoSelect}
               />
-              <Button variant="outlined" fullWidth onClick={() => fileInputRef.current?.click()} sx={{ mb: 1.5 }}>
+              <Button variant="outlined" fullWidth onClick={() => fileInputRef.current?.click()} sx={{ mb: 1 }}>
                 Take photo or choose image
               </Button>
+
+              <TextField
+                size="small"
+                placeholder="Describe the image (optional) — e.g. homemade, ~200g portion"
+                fullWidth
+                value={photoCaption}
+                onChange={(e) => setPhotoCaption(e.target.value)}
+                disabled={photoAnalyzing}
+                sx={{ mb: 1.5 }}
+              />
 
               <Typography
                 variant="caption"

@@ -97,7 +97,7 @@ export const POST = async (request: Request): Promise<Response> => {
     } else {
       const prompt =
         type === "meal"
-          ? `Analyze this meal photo. Estimate the nutritional content. ${MACRO_JSON_PROMPT}`
+          ? `Analyze this meal photo.${text ? ` The user says: "${text}".` : ""} Estimate the nutritional content. ${MACRO_JSON_PROMPT}`
           : "Read this nutrition label. Extract the per-serving data. Respond with JSON only: { product_name, serving_size, calories, protein_g, carbs_g, fat_g }. Use the serving size as shown.";
 
       const message = await anthropic.messages.create({
