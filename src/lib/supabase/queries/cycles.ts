@@ -1,5 +1,6 @@
 import type { Cycle } from "@/types/index";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { computeAvgCycleInterval } from "@/lib/cycle/phaseCalculator";
 
 export const getLatestCycle = async (supabase: SupabaseClient, userId: string): Promise<Cycle | null> => {
   const { data } = await supabase
@@ -22,19 +23,22 @@ export const getLast6Cycles = async (supabase: SupabaseClient, userId: string): 
   return data ?? [];
 };
 
+// Derived from period_start gaps across the last 6 cycles — the same method
+// the cycle feature's own AI insight uses (computeAvgCycleInterval). The
+// `cycle_length` column is NOT full cycle length; updateCycleEnd below sets
+// it to period duration (period_start → period_end), so it must not be used
+// for this calculation.
 export const getAvgCycleLength = async (supabase: SupabaseClient, userId: string): Promise<number> => {
   const { data } = await supabase
     .from("cycles")
-    .select("cycle_length")
+    .select("period_start")
     .eq("user_id", userId)
-    .not("cycle_length", "is", null)
     .order("period_start", { ascending: false })
     .limit(6);
 
   if (!data || data.length === 0) return 28;
 
-  const lengths = data.map((r: { cycle_length: number }) => r.cycle_length);
-  return Math.round(lengths.reduce((a: number, b: number) => a + b, 0) / lengths.length);
+  return computeAvgCycleInterval(data.map((r: { period_start: string }) => r.period_start));
 };
 
 export const insertCycle = async (

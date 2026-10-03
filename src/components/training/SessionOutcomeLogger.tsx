@@ -6,12 +6,12 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RemoveCircleOutlineRoundedIcon from "@mui/icons-material/RemoveCircleOutlineRounded";
 import { createClient } from "@/lib/supabase/client";
-import type { BlockDay } from "@/lib/training/cycleBlock";
+import type { PlannedSession } from "@/types/training";
 
 type OutcomeStatus = "completed" | "modified" | "skipped";
 
 interface SessionOutcomeLoggerProps {
-  blockDay: BlockDay;
+  session: PlannedSession;
   cycleDay: number;
   blockWeek: number;
 }
@@ -22,7 +22,7 @@ const STATUS_META: Record<OutcomeStatus, { label: string; color: string }> = {
   skipped:   { label: "Skipped",  color: "text.disabled" },
 };
 
-const SessionOutcomeLogger = ({ blockDay, cycleDay, blockWeek }: SessionOutcomeLoggerProps) => {
+const SessionOutcomeLogger = ({ session, cycleDay, blockWeek }: SessionOutcomeLoggerProps) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -43,7 +43,7 @@ const SessionOutcomeLogger = ({ blockDay, cycleDay, blockWeek }: SessionOutcomeL
         .select("id, status, completion_notes")
         .eq("user_id", user.id)
         .eq("scheduled_date", today)
-        .eq("day_of_week", blockDay.dayOfWeek)
+        .eq("day_of_week", session.dayOfWeek)
         .maybeSingle();
 
       if (data) {
@@ -55,7 +55,7 @@ const SessionOutcomeLogger = ({ blockDay, cycleDay, blockWeek }: SessionOutcomeL
       setLoading(false);
     };
     load();
-  }, [today, blockDay.dayOfWeek]);
+  }, [today, session.dayOfWeek]);
 
   const handleSave = async (selectedStatus: OutcomeStatus) => {
     setSaving(true);
@@ -66,8 +66,8 @@ const SessionOutcomeLogger = ({ blockDay, cycleDay, blockWeek }: SessionOutcomeL
     const payload = {
       user_id: user.id,
       week_number: blockWeek,
-      day_of_week: blockDay.dayOfWeek,
-      session_type: blockDay.sessionType,
+      day_of_week: session.dayOfWeek,
+      session_type: session.type,
       scheduled_date: today,
       completed_at: selectedStatus !== "skipped" ? new Date().toISOString() : null,
       status: selectedStatus,

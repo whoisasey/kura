@@ -14,31 +14,26 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import type { PlannedSession, TrainingPlan } from "@/types/training";
+import type { PlannedSession, TrainingPlan, TrainingWeek } from "@/types/training";
 import { getActivePlan, upsertPlan } from "@/lib/training/trainingService";
 import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
-import {
-  getCycleBlockWeek,
-  getDaysUntilNextPhase,
-  getNextPhaseName,
-  getPhaseTransitionMessage,
-  isPrePeriodDeload,
-} from "@/lib/training/getCycleBlockWeek";
+import { getBlockTransitionMessage, getCycleBlockWeekInfo } from "@/lib/training/getCycleBlockWeek";
 import { useEffect, useState } from "react";
 
 import AISuggestionPanel from "@/components/training/AISuggestionPanel";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
-import type { BlockDay } from "@/lib/training/cycleBlock";
-import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
 import SessionOutcomeLogger from "@/components/training/SessionOutcomeLogger";
 import type { CyclePhase } from "@/types/training";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import Link from "next/link";
-import { computeCycleDay } from "@/lib/cycle/phaseCalculator";
+import { computeCycleDay, daysUntilNextPhase, getNextPhaseLabel } from "@/lib/cycle/phaseCalculator";
 import { createClient } from "@/lib/supabase/client";
 import { cycleBlockPlan } from "@/lib/training/seedData";
+import { formatWeekRange } from "@/lib/training/formatWeekRange";
 import { useRouter } from "next/navigation";
+
+const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type PastOutcome = {
   status: "completed" | "modified" | "skipped";
@@ -61,11 +56,14 @@ const BLOCK_SESSION_COLORS: Record<string, string> = {
   pilates: "warning.dark",
   run: "primary.main",
   yoga: "success.light",
+  heavy: "secondary.dark",
+  tempo: "warning.main",
+  unilateral: "info.main",
   rest: "text.disabled",
 };
 
 interface BlockDayCardProps {
-  blockDay: BlockDay;
+  session: PlannedSession;
   isToday: boolean;
   cyclePhase?: CyclePhase;
   cycleDay?: number;
@@ -74,18 +72,11 @@ interface BlockDayCardProps {
   pastPattern?: PastOutcome;
 }
 
-const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blockWeek, pastPattern }: BlockDayCardProps) => {
+const BlockDayCard = ({ session, isToday, cyclePhase, cycleDay, showLogger, blockWeek, pastPattern }: BlockDayCardProps) => {
   const [open, setOpen] = useState(isToday);
   const [showAi, setShowAi] = useState(false);
-  const dotColor = BLOCK_SESSION_COLORS[blockDay.sessionType] ?? "text.secondary";
-
-  // Minimal PlannedSession shape for AISuggestionPanel
-  const asSession: PlannedSession = {
-    dayOfWeek: blockDay.dayOfWeek,
-    type: blockDay.sessionType as PlannedSession["type"],
-    label: blockDay.label,
-    sub: blockDay.exercises?.slice(0, 3).join(" · "),
-  };
+  const dotColor = BLOCK_SESSION_COLORS[session.type] ?? "text.secondary";
+  const dayName = DOW_NAMES[session.dayOfWeek];
 
   return (
     <Box
@@ -103,15 +94,15 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blo
         justifyContent="space-between"
         px={2}
         py={1.5}
-        onClick={() => blockDay.exercises?.length && setOpen((o) => !o)}
-        sx={{ cursor: blockDay.exercises?.length ? "pointer" : "default" }}
+        onClick={() => session.exercises?.length && setOpen((o) => !o)}
+        sx={{ cursor: session.exercises?.length ? "pointer" : "default" }}
       >
         <Stack direction="row" alignItems="center" gap={1.25}>
           <Box sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0 }} />
           <Box>
             <Stack direction="row" alignItems="center" gap={1}>
               <Typography variant="subtitle2" fontWeight={600}>
-                {blockDay.day}
+                {dayName}
               </Typography>
               {isToday && (
                 <Chip
@@ -120,17 +111,17 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blo
                   sx={{ fontSize: "0.65rem", height: 18, bgcolor: dotColor, color: "background.paper" }}
                 />
               )}
-              {blockDay.isOptional && (
+              {session.isOptional && (
                 <Typography variant="caption" color="text.disabled">optional</Typography>
               )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              {blockDay.label}
+              {session.label}
             </Typography>
           </Box>
         </Stack>
 
-        {blockDay.exercises?.length ? (
+        {session.exercises?.length ? (
           <ExpandMoreRoundedIcon
             fontSize="small"
             sx={{
@@ -156,25 +147,25 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blo
           </Stack>
           {showAi && (
             <Box mt={1}>
-              <AISuggestionPanel session={asSession} cyclePhase={cyclePhase} cycleDay={cycleDay} />
+              <AISuggestionPanel session={session} cyclePhase={cyclePhase} cycleDay={cycleDay} />
             </Box>
           )}
         </Box>
       )}
 
-      {blockDay.exercises?.length ? (
+      {session.exercises?.length ? (
         <Collapse in={open}>
           <Box px={2} pb={1.5} pt={0}>
             <List dense disablePadding sx={{ "& .MuiListItem-root": { px: 0, py: 0.25 } }}>
-              {blockDay.exercises.map((ex, i) => (
+              {session.exercises.map((ex, i) => (
                 <ListItem key={i}>
                   <Typography variant="caption" color="text.secondary">· {ex}</Typography>
                 </ListItem>
               ))}
             </List>
-            {blockDay.note && (
+            {session.note && (
               <Typography variant="caption" color="text.disabled" display="block" mt={0.5} fontStyle="italic">
-                {blockDay.note}
+                {session.note}
               </Typography>
             )}
           </Box>
@@ -196,7 +187,7 @@ const BlockDayCard = ({ blockDay, isToday, cyclePhase, cycleDay, showLogger, blo
 
       {showLogger && cycleDay != null && blockWeek != null && (
         <SessionOutcomeLogger
-          blockDay={blockDay}
+          session={session}
           cycleDay={cycleDay}
           blockWeek={blockWeek}
         />
@@ -213,7 +204,8 @@ const TrainingPage = () => {
   const [seeding, setSeeding] = useState(false);
   const [cyclePhase, setCyclePhase] = useState<CyclePhase | undefined>();
   const [cycleDay, setCycleDay] = useState<number | undefined>();
-  const [avgCycleLength, setAvgCycleLength] = useState(29);
+  const [periodStart, setPeriodStart] = useState<string | undefined>();
+  const [avgCycleLength, setAvgCycleLength] = useState(28);
   const [viewWeek, setViewWeek] = useState<1 | 2 | 3 | 4>(1);
   const [pastPatterns, setPastPatterns] = useState<PastPatterns>({});
 
@@ -241,7 +233,7 @@ const TrainingPage = () => {
           .from("workout_sessions")
           .select("day_of_week, status, completion_notes, scheduled_date")
           .eq("user_id", user.id)
-          .eq("week_number", 1)
+          .in("week_number", [1, 4]) // both deload weeks share the same content
           .order("scheduled_date", { ascending: false })
           .limit(28), // 4 cycles × 7 days
       ]);
@@ -249,7 +241,7 @@ const TrainingPage = () => {
       setPlan(activePlan);
       setAvgCycleLength(avgLen);
 
-      // Group past Week 1 logs by day_of_week, compute pattern per day
+      // Group past deload-week logs by day_of_week, compute pattern per day
       if (pastLogsRes.data?.length) {
         const byDay: Record<number, Array<{ status: string; note: string | null }>> = {};
         for (const row of pastLogsRes.data) {
@@ -275,10 +267,11 @@ const TrainingPage = () => {
 
       if (cycleRes.data) {
         setCyclePhase((cycleRes.data.phase as CyclePhase) ?? undefined);
+        setPeriodStart(cycleRes.data.period_start);
         const derived = computeCycleDay(cycleRes.data.period_start);
         if (derived > 0) {
           setCycleDay(derived);
-          setViewWeek(getCycleBlockWeek(derived, avgLen));
+          setViewWeek(getCycleBlockWeekInfo(cycleRes.data.period_start, avgLen, todayStr).weekNumber);
         }
       }
 
@@ -305,24 +298,29 @@ const TrainingPage = () => {
     );
   }
 
-  const blockWeekNum = cycleDay != null ? getCycleBlockWeek(cycleDay, avgCycleLength) : null;
-  const blockWeekData = blockWeekNum != null ? CYCLE_BLOCK[blockWeekNum - 1] : null;
-  const transitionMsg = cycleDay != null ? getPhaseTransitionMessage(cycleDay, avgCycleLength) : null;
-  const daysUntilNext = cycleDay != null ? getDaysUntilNextPhase(cycleDay, avgCycleLength) : null;
-  const nextPhase = cycleDay != null ? getNextPhaseName(cycleDay, avgCycleLength) : null;
-  const prePeriod = cycleDay != null && isPrePeriodDeload(cycleDay, avgCycleLength) && cycleDay > 7;
+  const weekByNumber = (n: number): TrainingWeek | undefined => plan?.weeks.find((w) => w.weekNumber === n);
 
-  // The week being viewed (may differ from current block week)
-  const viewWeekData = CYCLE_BLOCK[viewWeek - 1];
+  const blockWeekInfo = cycleDay != null && periodStart ? getCycleBlockWeekInfo(periodStart, avgCycleLength, todayStr) : null;
+  const blockWeekNum = blockWeekInfo?.weekNumber ?? null;
+  const transitionMsg = cycleDay != null && blockWeekInfo ? getBlockTransitionMessage(cycleDay, blockWeekInfo, todayStr) : null;
+  const daysUntilNext = cycleDay != null ? daysUntilNextPhase(cycleDay, avgCycleLength) : null;
+  const nextPhase = cycleDay != null ? getNextPhaseLabel(cycleDay) : null;
+
+  // The week being viewed (may differ from current block week) — always read
+  // live from the DB-backed plan, never from a static constant, so edits
+  // made on /training/edit show up here immediately.
+  const viewWeekData = weekByNumber(viewWeek);
   const isViewingCurrentWeek = viewWeek === blockWeekNum;
 
-  // No cycle data at all — show empty state
-  if (!blockWeekData) {
+  // No plan loaded, or no cycle logged yet — show empty state
+  if (!plan || !viewWeekData) {
     return (
       <Box p={3}>
         <Typography variant="h6" fontWeight={700} mb={1}>Training</Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Log your period start to see your cycle-synced training block.
+          {cycleDay == null
+            ? "Log your period start to see your cycle-synced training block."
+            : "Load your cycle-synced training block to get started."}
         </Typography>
         {!plan && (
           <Stack gap={1.5}>
@@ -386,7 +384,7 @@ const TrainingPage = () => {
         <Box textAlign="center" flex={1}>
           <Stack direction="row" alignItems="center" justifyContent="center" gap={1}>
             <Typography variant="subtitle1" fontWeight={700}>
-              Week {viewWeekData.week} — {isViewingCurrentWeek && prePeriod ? "Late luteal · pre-period deload" : viewWeekData.phase}
+              Week {viewWeekData.weekNumber} — {viewWeekData.phase}
             </Typography>
             {viewWeek === 3 && (
               <Chip label="PR window" size="small" color="warning" sx={{ fontSize: "0.7rem" }} />
@@ -419,6 +417,7 @@ const TrainingPage = () => {
 
       {isViewingCurrentWeek && (
         <Typography variant="caption" color="text.disabled" display="block" textAlign="center">
+          {blockWeekInfo && `${formatWeekRange(blockWeekInfo.weekStartDate)} · `}
           Cycle day {cycleDay}
           {daysUntilNext != null && daysUntilNext > 0 && (
             <> · {daysUntilNext} day{daysUntilNext !== 1 ? "s" : ""} until {nextPhase}</>
@@ -466,16 +465,16 @@ const TrainingPage = () => {
 
       {/* Single unified week list */}
       <Stack gap={1}>
-        {viewWeekData.days.map((day) => (
+        {viewWeekData.sessions.map((session) => (
           <BlockDayCard
-            key={day.dayOfWeek}
-            blockDay={day}
-            isToday={isViewingCurrentWeek && day.dayOfWeek === todayDow}
+            key={session.dayOfWeek}
+            session={session}
+            isToday={isViewingCurrentWeek && session.dayOfWeek === todayDow}
             cyclePhase={cyclePhase}
             cycleDay={cycleDay}
-            showLogger={viewWeek === 1 && isViewingCurrentWeek && day.dayOfWeek === todayDow}
+            showLogger={!!viewWeekData.isDeload && isViewingCurrentWeek && session.dayOfWeek === todayDow}
             blockWeek={viewWeek}
-            pastPattern={viewWeek === 1 ? pastPatterns[day.dayOfWeek] : undefined}
+            pastPattern={viewWeekData.isDeload ? pastPatterns[session.dayOfWeek] : undefined}
           />
         ))}
       </Stack>
