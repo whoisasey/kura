@@ -1,5 +1,14 @@
 export type CyclePhase = "menstrual" | "follicular" | "ovulation" | "luteal";
 
+// Canonical phase day boundaries — the single source of truth for where one
+// phase ends and the next begins. Anything that needs to reason about phase
+// timing (training block, AI prompts, etc.) should import these rather than
+// re-deriving its own thresholds, which is how training previously drifted
+// out of sync with the cycle feature's own phase math.
+export const MENSTRUAL_END_DAY = 5;
+export const FOLLICULAR_END_DAY = 13;
+export const OVULATION_END_DAY = 16;
+
 export const computeCycleDay = (periodStart: string, localDate?: string): number => {
   const [sy, sm, sd] = periodStart.split("-").map(Number);
   const todayStr = localDate ?? new Date().toLocaleDateString("en-CA");
@@ -10,19 +19,26 @@ export const computeCycleDay = (periodStart: string, localDate?: string): number
 };
 
 export const computePhase = (cycleDay: number, avgCycleLength: number = 28): CyclePhase => {
-  if (cycleDay <= 5) return "menstrual";
-  if (cycleDay <= 13) return "follicular";
-  if (cycleDay <= 16) return "ovulation";
+  if (cycleDay <= MENSTRUAL_END_DAY) return "menstrual";
+  if (cycleDay <= FOLLICULAR_END_DAY) return "follicular";
+  if (cycleDay <= OVULATION_END_DAY) return "ovulation";
   // luteal runs from day 17 to end of cycle
   void avgCycleLength;
   return "luteal";
 };
 
 export const daysUntilNextPhase = (cycleDay: number, cycleLength: number = 28): number => {
-  if (cycleDay <= 5) return 5 - cycleDay + 1;
-  if (cycleDay <= 13) return 13 - cycleDay + 1;
-  if (cycleDay <= 16) return 16 - cycleDay + 1;
+  if (cycleDay <= MENSTRUAL_END_DAY) return MENSTRUAL_END_DAY - cycleDay + 1;
+  if (cycleDay <= FOLLICULAR_END_DAY) return FOLLICULAR_END_DAY - cycleDay + 1;
+  if (cycleDay <= OVULATION_END_DAY) return OVULATION_END_DAY - cycleDay + 1;
   return Math.max(1, cycleLength - cycleDay + 1);
+};
+
+export const getNextPhaseLabel = (cycleDay: number): string => {
+  if (cycleDay <= MENSTRUAL_END_DAY) return "follicular build";
+  if (cycleDay <= FOLLICULAR_END_DAY) return "peak week";
+  if (cycleDay <= OVULATION_END_DAY) return "luteal wind-down";
+  return "period start";
 };
 
 export const computeAvgCycleInterval = (periodStarts: string[]): number => {

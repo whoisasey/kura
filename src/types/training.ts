@@ -10,11 +10,17 @@ export interface PlannedSession {
   distanceKm?: number;
   durationMin?: number;
   notes?: string;
+  exercises?: string[];
+  note?: string;
+  isOptional?: boolean;
+  isWeekend?: boolean;
 }
 
 export interface TrainingWeek {
   weekNumber: number;
   phase?: string;
+  intent?: string;
+  weekNote?: string;
   isDeload?: boolean;
   sessions: PlannedSession[];
   weeklyKm?: number;

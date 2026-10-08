@@ -4,8 +4,12 @@ import { Box, Card, CardContent, Chip, Divider, Skeleton, Typography } from '@mu
 import { useEffect, useState } from 'react'
 import type { CycleInsight } from '@/types/index'
 import type { CyclePhase } from '@/lib/cycle/phaseCalculator'
-import type { PlannedSession, SessionType } from '@/types/training'
+import type { PlannedSession, SessionType, TrainingPlan } from '@/types/training'
 import { cycleBlockPlan } from '@/lib/training/seedData'
+import { getActivePlan } from '@/lib/training/trainingService'
+import { getAvgCycleLength, getLatestCycle } from '@/lib/supabase/queries/cycles'
+import { getCycleBlockWeekInfo } from '@/lib/training/getCycleBlockWeek'
+import { createClient } from '@/lib/supabase/client'
 
 interface ExerciseCardProps {
   insight: CycleInsight | null
@@ -44,8 +48,11 @@ const phaseNote: Record<CyclePhase, Partial<Record<SessionType, string>>> = {
   },
 }
 
-const getSessionForDow = (dow: number): PlannedSession | undefined => {
-  const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek)
+// Current block week is derived live from the real cycle day/length — never
+// trust a stored currentWeek field, which goes stale as soon as the cycle
+// moves on. Falls back to the seed content if no plan has been loaded yet.
+const getSessionForDow = (plan: TrainingPlan, blockWeekNum: number, dow: number): PlannedSession | undefined => {
+  const week = plan.weeks.find(w => w.weekNumber === blockWeekNum)
   return week?.sessions.find(s => s.dayOfWeek === dow)
 }
 
@@ -100,8 +107,30 @@ const ExerciseCard = ({ insight, loading }: ExerciseCardProps) => {
   const todayDow    = new Date().getDay()
   const tomorrowDow = (todayDow + 1) % 7
 
-  const todaySession    = getSessionForDow(todayDow)
-  const tomorrowSession = getSessionForDow(tomorrowDow)
+  const [activePlan, setActivePlan] = useState<TrainingPlan>(cycleBlockPlan)
+  const [avgCycleLength, setAvgCycleLength] = useState(28)
+  const [periodStart, setPeriodStart] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const [plan, avgLen, latestCycle] = await Promise.all([
+        getActivePlan(supabase, user.id),
+        getAvgCycleLength(supabase, user.id),
+        getLatestCycle(supabase, user.id),
+      ])
+      if (plan) setActivePlan(plan)
+      setAvgCycleLength(avgLen)
+      if (latestCycle) setPeriodStart(latestCycle.period_start)
+    }
+    load()
+  }, [])
+
+  const blockWeekNum = insight && periodStart ? getCycleBlockWeekInfo(periodStart, avgCycleLength).weekNumber : null
+  const todaySession    = blockWeekNum != null ? getSessionForDow(activePlan, blockWeekNum, todayDow) : undefined
+  const tomorrowSession = blockWeekNum != null ? getSessionForDow(activePlan, blockWeekNum, tomorrowDow) : undefined
 
   const [aiNote, setAiNote]       = useState<string | null>(null)
   const [noteLoading, setNoteLoading] = useState(false)
@@ -116,6 +145,7 @@ const ExerciseCard = ({ insight, loading }: ExerciseCardProps) => {
           phase: insight.phase,
           cycleDay: String(insight.cycle_day),
           dow: String(todayDow),
+          blockWeek: String(blockWeekNum ?? 1),
         })
         const res = await fetch(`/api/training/exercise-note?${params}`, { cache: 'no-store' })
         if (!res.ok) return
@@ -127,7 +157,7 @@ const ExerciseCard = ({ insight, loading }: ExerciseCardProps) => {
     }
 
     fetchNote()
-  }, [insight?.phase, insight?.cycle_day, todayDow]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [insight?.phase, insight?.cycle_day, todayDow, blockWeekNum]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card elevation={0} sx={{ border: '0.5px solid', borderColor: 'divider' }}>

@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { cycleBlockPlan } from "@/lib/training/seedData";
-import { getCycleBlockWeek } from "@/lib/training/getCycleBlockWeek";
 import type { CyclePhase } from "@/lib/cycle/phaseCalculator";
 
 const anthropic = new Anthropic();
@@ -29,6 +28,7 @@ export const GET = async (request: Request): Promise<Response> => {
   const phase = searchParams.get("phase") as CyclePhase | null;
   const cycleDay = searchParams.get("cycleDay");
   const dow = parseInt(searchParams.get("dow") ?? "0", 10);
+  const blockWeekNum = parseInt(searchParams.get("blockWeek") ?? "1", 10);
   const today = new Date().toLocaleDateString("en-CA");
 
   if (!phase) return Response.json({ error: "phase required" }, { status: 400 });
@@ -47,8 +47,6 @@ export const GET = async (request: Request): Promise<Response> => {
   if (cached) return Response.json({ note: cached.suggestion_text });
 
   // Cache miss — build context and call Claude
-  const parsedCycleDay = cycleDay ? parseInt(cycleDay, 10) : null;
-  const blockWeekNum = parsedCycleDay ? getCycleBlockWeek(parsedCycleDay) : 1;
   const week = cycleBlockPlan.weeks.find(w => w.weekNumber === blockWeekNum);
   const session = week?.sessions.find(s => s.dayOfWeek === dow);
 
