@@ -1092,7 +1092,6 @@ const NutritionPage = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 style={{ display: "none" }}
                 onChange={handlePhotoSelect}
               />
