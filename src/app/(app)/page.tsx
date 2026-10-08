@@ -2,24 +2,23 @@
 
 import { Box, Button, Card, CardContent, Chip, LinearProgress, Skeleton, Typography } from "@mui/material";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
-import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
-import { getActivitiesForEntry } from "@/lib/supabase/queries/journal";
 import { getDailyTargets, getMealsWithMacrosForDate } from "@/lib/supabase/queries/nutrition";
-import type { DailyTargets } from "@/lib/supabase/queries/nutrition";
+import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import type { PlannedSession } from "@/types/training";
+import type { DailyTargets } from "@/lib/supabase/queries/nutrition";
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
 import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
-import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
-import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
-import { CYCLE_BLOCK } from "@/lib/training/cycleBlock";
-import type { BlockDay } from "@/lib/training/cycleBlock";
-import { getCycleBlockWeek } from "@/lib/training/getCycleBlockWeek";
 import { cycleBlockPlan } from "@/lib/training/seedData";
+import { getActivitiesForEntry } from "@/lib/supabase/queries/journal";
+import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
+import { getCycleBlockWeekInfo } from "@/lib/training/getCycleBlockWeek";
+import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useRouter } from "next/navigation";
 
 interface Prediction {
@@ -64,7 +63,6 @@ const phaseColors: Record<string, string> = {
   ovulation: "#D4853A",
   luteal: "#6B8F71",
 };
-
 
 const getGreeting = (name: string | null) => {
   const hour = new Date().getHours();
@@ -112,7 +110,7 @@ const DashboardPage = () => {
   const [weatherReading, setWeatherReading] = useState<WeatherReading | null>(null);
   const [todayActivities, setTodayActivities] = useState<Activity[]>([]);
   const [avgCycleLength, setAvgCycleLength] = useState(29);
-  const [todayBlockDay, setTodayBlockDay] = useState<BlockDay | null>(null);
+  const [todayBlockDay, setTodayBlockDay] = useState<PlannedSession | null>(null);
   const [nutritionTargets, setNutritionTargets] = useState<DailyTargets | null>(null);
   const [totalCalories, setTotalCalories] = useState(0);
   const [totalProtein, setTotalProtein] = useState(0);
@@ -165,10 +163,10 @@ const DashboardPage = () => {
 
         const avgLen = await getAvgCycleLength(supabase, user.id);
         setAvgCycleLength(avgLen);
-        const blockWeekNum = getCycleBlockWeek(day, avgLen);
-        const blockWeekData = CYCLE_BLOCK[blockWeekNum - 1];
-        const todayDow = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
-        setTodayBlockDay(blockWeekData?.days.find((bd) => bd.dayOfWeek === todayDow) ?? null);
+        const { weekNumber } = getCycleBlockWeekInfo(cyc.period_start, avgLen);
+        const blockWeekData = cycleBlockPlan.weeks.find((w) => w.weekNumber === weekNumber);
+        const todayDow = new Date().getDay();
+        setTodayBlockDay(blockWeekData?.sessions.find((s) => s.dayOfWeek === todayDow) ?? null);
       }
 
       setLoading(false);
@@ -288,14 +286,16 @@ const DashboardPage = () => {
                   </Typography>
                   {(() => {
                     const todayDow = new Date().getDay();
-                    const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek);
-                    const session = week?.sessions.find(s => s.dayOfWeek === todayDow);
+                    const week = cycleBlockPlan.weeks.find((w) => w.weekNumber === cycleBlockPlan.currentWeek);
+                    const session = week?.sessions.find((s) => s.dayOfWeek === todayDow);
                     if (!session || session.type === "rest") return null;
                     return (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: "text.disabled" }} />
                         <Typography variant="caption" color="text.disabled">
-                          {session.label}{session.sub ? ` — ${session.sub}` : ""}{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                          {session.label}
+                          {session.sub ? ` — ${session.sub}` : ""}
+                          {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
                         </Typography>
                       </Box>
                     );
@@ -426,7 +426,9 @@ const DashboardPage = () => {
             </Box>
             <Box sx={{ mb: 1.5 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">Calories</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Calories
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {totalCalories} / {nutritionTargets.calorie_target}
                 </Typography>
@@ -439,7 +441,9 @@ const DashboardPage = () => {
             </Box>
             <Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">Protein</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Protein
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {Math.round(totalProtein)}g / {nutritionTargets.protein_target}g
                 </Typography>
@@ -454,8 +458,6 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
       )}
-
-
 
       {/* Activities summary */}
       {todayActivities.length > 0 && (
@@ -517,14 +519,15 @@ const DashboardPage = () => {
                   height: 9,
                   borderRadius: "50%",
                   flexShrink: 0,
-                  bgcolor: {
-                    physio: "success.main",
-                    resistance: "secondary.main",
-                    pilates: "warning.dark",
-                    run: "primary.main",
-                    yoga: "success.light",
-                    rest: "text.disabled",
-                  }[todayBlockDay.sessionType] ?? "text.disabled",
+                  bgcolor:
+                    ({
+                      physio: "success.main",
+                      resistance: "secondary.main",
+                      pilates: "warning.dark",
+                      run: "primary.main",
+                      yoga: "success.light",
+                      rest: "text.disabled",
+                    } as Record<string, string>)[todayBlockDay.type] ?? "text.disabled",
                 }}
               />
               <Box>
