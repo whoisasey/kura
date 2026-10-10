@@ -128,6 +128,8 @@ const NutritionPage = () => {
   const [libServings, setLibServings] = useState("1");
   const [photoCaption, setPhotoCaption] = useState("");
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
+  const [pendingPhotoBase64, setPendingPhotoBase64] = useState<string | null>(null);
+  const [pendingPhotoName, setPendingPhotoName] = useState("");
   const [describeQuery, setDescribeQuery] = useState("");
   const [describeAnalyzing, setDescribeAnalyzing] = useState(false);
   const [aiCategory, setAiCategory] = useState("");
@@ -241,6 +243,8 @@ const NutritionPage = () => {
     setPhotoEstimate(null);
     setPhotoSimilarItems([]);
     setPhotoCaption("");
+    setPendingPhotoBase64(null);
+    setPendingPhotoName("");
     setDescribeQuery("");
     setAiCategory("");
     setSelectedLibItem(null);
@@ -335,36 +339,45 @@ const NutritionPage = () => {
     setPhotoSimilarItems(similar);
   };
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhotoAnalyzing(true);
     setPhotoEstimate(null);
     setPhotoSimilarItems([]);
 
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       const base64 = (reader.result as string).split(",")[1];
-      const res = await fetch("/api/meals/estimate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, type: "meal", text: photoCaption.trim() || undefined }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          name: string;
-          description: string;
-          calories: number;
-          protein: number;
-          carbs: number;
-          fat: number;
-          weight_g?: number;
-        };
-        applyEstimate(data);
-      }
-      setPhotoAnalyzing(false);
+      setPendingPhotoBase64(base64);
+      setPendingPhotoName(file.name);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAnalyzePhoto = async () => {
+    if (!pendingPhotoBase64) return;
+    setPhotoAnalyzing(true);
+    setPhotoEstimate(null);
+    setPhotoSimilarItems([]);
+
+    const res = await fetch("/api/meals/estimate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: pendingPhotoBase64, type: "meal", text: photoCaption.trim() || undefined }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        name: string;
+        description: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        weight_g?: number;
+      };
+      applyEstimate(data);
+    }
+    setPhotoAnalyzing(false);
   };
 
   const handleDescribeEstimate = async () => {
@@ -1096,18 +1109,30 @@ const NutritionPage = () => {
                 onChange={handlePhotoSelect}
               />
               <Button variant="outlined" fullWidth onClick={() => fileInputRef.current?.click()} sx={{ mb: 1 }}>
-                Take photo or choose image
+                {pendingPhotoName ? `Change photo (${pendingPhotoName})` : "Take photo or choose image"}
               </Button>
 
-              <TextField
-                size="small"
-                placeholder="Describe the image (optional) — e.g. homemade, ~200g portion"
-                fullWidth
-                value={photoCaption}
-                onChange={(e) => setPhotoCaption(e.target.value)}
-                disabled={photoAnalyzing}
-                sx={{ mb: 1.5 }}
-              />
+              {pendingPhotoBase64 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 1.5 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Describe the image (optional) — e.g. homemade, ~200g portion"
+                    fullWidth
+                    value={photoCaption}
+                    onChange={(e) => setPhotoCaption(e.target.value)}
+                    disabled={photoAnalyzing}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => void handleAnalyzePhoto()}
+                    disabled={photoAnalyzing}
+                    sx={{ alignSelf: "flex-end" }}
+                  >
+                    {photoAnalyzing ? <CircularProgress size={16} color="inherit" /> : "Analyze"}
+                  </Button>
+                </Box>
+              )}
 
               <Typography
                 variant="caption"
