@@ -1,27 +1,29 @@
 import { createClient } from "@/lib/supabase/client";
 
-export const getOrCreateTodayEntry = async (userId: string) => {
+export const getOrCreateEntryForDate = async (userId: string, date: string) => {
   const supabase = createClient();
-  const today = new Date().toLocaleDateString("en-CA");
 
   const { data: existing } = await supabase
     .from("journal_entries")
     .select("*")
     .eq("user_id", userId)
-    .eq("entry_date", today)
+    .eq("entry_date", date)
     .single();
 
   if (existing) return existing;
 
   const { data: created, error } = await supabase
     .from("journal_entries")
-    .insert({ user_id: userId, entry_date: today })
+    .insert({ user_id: userId, entry_date: date })
     .select()
     .single();
 
   if (error) return null;
   return created;
 };
+
+export const getOrCreateTodayEntry = async (userId: string) =>
+  getOrCreateEntryForDate(userId, new Date().toLocaleDateString("en-CA"));
 
 export const updateJournalEntry = async (id: string, fields: Record<string, unknown>) => {
   const supabase = createClient();

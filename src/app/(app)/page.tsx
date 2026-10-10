@@ -1,18 +1,24 @@
 "use client";
 
-import { Box, Button, Card, CardContent, Chip, Skeleton, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, LinearProgress, Skeleton, Typography } from "@mui/material";
 import type { EnvAlerts, WeatherReading } from "@/types/index";
+import { getDailyTargets, getMealsWithMacrosForDate } from "@/lib/supabase/queries/nutrition";
 import { getLatestCycle, getTodayEntry, getTodayPrediction } from "@/lib/supabase/queries/dashboard";
 import { useEffect, useState } from "react";
 
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import type { PlannedSession } from "@/types/training";
+import type { DailyTargets } from "@/lib/supabase/queries/nutrition";
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import EnvBanner from "@/components/env/EnvBanner";
 import KuraLogo from "@/components/ui/KuraLogo";
 import { createClient } from "@/lib/supabase/client";
-import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { cycleBlockPlan } from "@/lib/training/seedData";
+import { getActivitiesForEntry } from "@/lib/supabase/queries/journal";
+import { getAvgCycleLength } from "@/lib/supabase/queries/cycles";
+import { getCycleBlockWeekInfo } from "@/lib/training/getCycleBlockWeek";
+import { getLatestWeatherReading } from "@/lib/supabase/queries/weather";
 import { useRouter } from "next/navigation";
 
 interface Prediction {
@@ -30,10 +36,18 @@ interface Cycle {
 }
 
 interface TodayEntry {
+  id: string;
   energy_level?: number;
   sleep_hours?: number;
   stress_level?: number;
   hydration_level?: number;
+}
+
+interface Activity {
+  id: string;
+  activity_type: string;
+  description: string;
+  duration_minutes?: number;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -49,7 +63,6 @@ const phaseColors: Record<string, string> = {
   ovulation: "#D4853A",
   luteal: "#6B8F71",
 };
-
 
 const getGreeting = (name: string | null) => {
   const hour = new Date().getHours();
@@ -95,6 +108,12 @@ const DashboardPage = () => {
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [todayEntry, setTodayEntry] = useState<TodayEntry | null>(null);
   const [weatherReading, setWeatherReading] = useState<WeatherReading | null>(null);
+  const [todayActivities, setTodayActivities] = useState<Activity[]>([]);
+  const [avgCycleLength, setAvgCycleLength] = useState(29);
+  const [todayBlockDay, setTodayBlockDay] = useState<PlannedSession | null>(null);
+  const [nutritionTargets, setNutritionTargets] = useState<DailyTargets | null>(null);
+  const [totalCalories, setTotalCalories] = useState(0);
+  const [totalProtein, setTotalProtein] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -123,11 +142,31 @@ const DashboardPage = () => {
       setTodayEntry(entry);
       if (weather) setWeatherReading(weather);
 
+      if (entry?.id) {
+        const today = new Date().toLocaleDateString("en-CA");
+        const [activities, mealsWithMacros, targets] = await Promise.all([
+          getActivitiesForEntry(entry.id),
+          getMealsWithMacrosForDate(user.id, today),
+          getDailyTargets(user.id),
+        ]);
+        setTodayActivities(activities as Activity[]);
+        setNutritionTargets(targets);
+        setTotalCalories(mealsWithMacros.reduce((s, m) => s + (m.calories ?? 0), 0));
+        setTotalProtein(mealsWithMacros.reduce((s, m) => s + (m.protein ?? 0), 0));
+      }
+
       if (cyc?.period_start) {
         const [y, m, d] = cyc.period_start.split("-").map(Number);
         const start = new Date(y, m - 1, d);
         const day = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setCycleDay(day);
+
+        const avgLen = await getAvgCycleLength(supabase, user.id);
+        setAvgCycleLength(avgLen);
+        const { weekNumber } = getCycleBlockWeekInfo(cyc.period_start, avgLen);
+        const blockWeekData = cycleBlockPlan.weeks.find((w) => w.weekNumber === weekNumber);
+        const todayDow = new Date().getDay();
+        setTodayBlockDay(blockWeekData?.sessions.find((s) => s.dayOfWeek === todayDow) ?? null);
       }
 
       setLoading(false);
@@ -247,14 +286,16 @@ const DashboardPage = () => {
                   </Typography>
                   {(() => {
                     const todayDow = new Date().getDay();
-                    const week = cycleBlockPlan.weeks.find(w => w.weekNumber === cycleBlockPlan.currentWeek);
-                    const session = week?.sessions.find(s => s.dayOfWeek === todayDow);
+                    const week = cycleBlockPlan.weeks.find((w) => w.weekNumber === cycleBlockPlan.currentWeek);
+                    const session = week?.sessions.find((s) => s.dayOfWeek === todayDow);
                     if (!session || session.type === "rest") return null;
                     return (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <DirectionsRunRoundedIcon sx={{ fontSize: 15, color: "text.disabled" }} />
                         <Typography variant="caption" color="text.disabled">
-                          {session.label}{session.sub ? ` — ${session.sub}` : ""}{session.distanceKm ? ` · ${session.distanceKm} km` : ""}
+                          {session.label}
+                          {session.sub ? ` — ${session.sub}` : ""}
+                          {session.distanceKm ? ` · ${session.distanceKm} km` : ""}
                         </Typography>
                       </Box>
                     );
@@ -364,6 +405,145 @@ const DashboardPage = () => {
             </Box>
           ))}
         </Box>
+      )}
+
+      {/* Nutrition progress */}
+      {nutritionTargets && (totalCalories > 0 || totalProtein > 0) && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Nutrition
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/nutrition")}
+              >
+                Details
+              </Typography>
+            </Box>
+            <Box sx={{ mb: 1.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Calories
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {totalCalories} / {nutritionTargets.calorie_target}
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min((totalCalories / nutritionTargets.calorie_target) * 100, 100)}
+                sx={{ borderRadius: 2, height: 8 }}
+              />
+            </Box>
+            <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Protein
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(totalProtein)}g / {nutritionTargets.protein_target}g
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min((totalProtein / nutritionTargets.protein_target) * 100, 100)}
+                color="secondary"
+                sx={{ borderRadius: 2, height: 8 }}
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Activities summary */}
+      {todayActivities.length > 0 && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Activities today
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/journal")}
+              >
+                Edit
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {todayActivities.map((act) => (
+                <Box key={act.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Chip label={act.activity_type} size="small" sx={{ textTransform: "capitalize", minWidth: 72 }} />
+                  <Typography variant="body2" color="text.primary">
+                    {act.description}
+                    {act.duration_minutes ? (
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                        {act.duration_minutes} min
+                      </Typography>
+                    ) : null}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Today's training */}
+      {todayBlockDay && (
+        <Card elevation={0} sx={{ border: "0.5px solid", borderColor: "divider" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Training today
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => router.push("/training")}
+              >
+                View
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  bgcolor:
+                    ({
+                      physio: "success.main",
+                      resistance: "secondary.main",
+                      pilates: "warning.dark",
+                      run: "primary.main",
+                      yoga: "success.light",
+                      rest: "text.disabled",
+                    } as Record<string, string>)[todayBlockDay.type] ?? "text.disabled",
+                }}
+              />
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  {todayBlockDay.label}
+                </Typography>
+                {todayBlockDay.exercises && todayBlockDay.exercises.length > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    {todayBlockDay.exercises.slice(0, 2).join(" · ")}
+                    {todayBlockDay.exercises.length > 2 ? ` +${todayBlockDay.exercises.length - 2} more` : ""}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       {/* Journal CTA */}
