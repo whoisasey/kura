@@ -36,26 +36,37 @@ export const GET = async (request: Request): Promise<Response> => {
     ]);
     if (cachedCycle) {
       const freshDay = computeCycleDay(cachedCycle.period_start, today);
-      const avgLen = computeAvgCycleInterval(cachedHistory.map(c => c.period_start));
-      const freshDaysLeft = daysUntilNextPhase(freshDay, avgLen);
-      const recomputedForecast = cached.symptom_forecast
-        ? {
-            upcoming: cached.symptom_forecast.upcoming
-              .map(item => ({ ...item, days_away: item.likely_day - freshDay }))
-              .filter(item => item.days_away >= 0 && item.days_away <= 14),
-          }
-        : null;
-      return Response.json({
-        ...cached,
-        cycle_day: freshDay,
-        phase: computePhase(freshDay),
-        days_until_next_phase: freshDaysLeft,
-        symptom_forecast: recomputedForecast?.upcoming.length ? recomputedForecast : null,
-        transition_briefing: {
-          ...cached.transition_briefing,
-          arriving_in_days: freshDaysLeft,
-        },
-      }, noCache);
+      const freshPhase = computePhase(freshDay);
+
+      // The cached insight's prose (hormone_note, what_to_expect, transition
+      // briefing text, etc.) describes whatever phase/day was true when it was
+      // generated. If the underlying cycle data has since changed (e.g. a new
+      // period was logged later the same day) and that no longer matches, the
+      // cached text is stale — patching just the numeric fields would show a
+      // correct header over a wrong narrative. Treat it as a cache miss instead.
+      if (freshPhase === cached.phase && freshDay === cached.cycle_day) {
+        const avgLen = computeAvgCycleInterval(cachedHistory.map(c => c.period_start));
+        const freshDaysLeft = daysUntilNextPhase(freshDay, avgLen);
+        const recomputedForecast = cached.symptom_forecast
+          ? {
+              upcoming: cached.symptom_forecast.upcoming
+                .map(item => ({ ...item, days_away: item.likely_day - freshDay }))
+                .filter(item => item.days_away >= 0 && item.days_away <= 14),
+            }
+          : null;
+        return Response.json({
+          ...cached,
+          cycle_day: freshDay,
+          phase: freshPhase,
+          days_until_next_phase: freshDaysLeft,
+          symptom_forecast: recomputedForecast?.upcoming.length ? recomputedForecast : null,
+          transition_briefing: {
+            ...cached.transition_briefing,
+            arriving_in_days: freshDaysLeft,
+          },
+        }, noCache);
+      }
+      // Cached insight no longer matches the current cycle data — fall through to a fresh call
     }
     // Can't recompute without a cycle — fall through to fresh call
   }
@@ -195,7 +206,8 @@ export const GET = async (request: Request): Promise<Response> => {
     return Response.json({ error: "insight_failed" }, { status: 500, ...noCache });
   }
 
-  // 5. Persist to predictions table — check first to guarantee at-most-one insert per user per day
+  // 5. Persist to predictions table — one row per user per day, overwritten if the
+  // cache was invalidated above (stale cycle data) so later loads today pick up this insight.
   try {
     const { data: existing } = await supabase
       .from("predictions")
@@ -214,6 +226,12 @@ export const GET = async (request: Request): Promise<Response> => {
         hormone_note: JSON.stringify(insight),
       });
       if (insertError) console.error("[cycle-insight] insert error:", insertError);
+    } else {
+      const { error: updateError } = await supabase
+        .from("predictions")
+        .update({ phase: insight.phase, hormone_note: JSON.stringify(insight) })
+        .eq("id", existing.id);
+      if (updateError) console.error("[cycle-insight] update error:", updateError);
     }
   } catch (err) {
     console.error("[cycle-insight] persist failed:", err);

@@ -8,14 +8,14 @@ import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import KuraLogo from "@/components/ui/KuraLogo";
-import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
+import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
 
 const tabs = [
   { label: "Home", icon: <KuraLogo size={24} showWordmark={false} animate={false} />, path: "/" },
   { label: "Cycle", icon: <FavoriteRoundedIcon />, path: "/cycle" },
   { label: "Journal", icon: <EditNoteRoundedIcon />, path: "/journal" },
   { label: "Training", icon: <DirectionsRunRoundedIcon />, path: "/training" },
-  { label: "Library", icon: <MenuBookRoundedIcon />, path: "/library" },
+  { label: "Nutrition", icon: <RestaurantRoundedIcon />, path: "/nutrition" },
   // { label: "Insights", icon: <InsightsRoundedIcon />, path: "/insights" },
 ];
 

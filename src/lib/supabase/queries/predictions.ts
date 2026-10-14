@@ -13,7 +13,7 @@ export const getTodayCycleInsight = async (
     .eq('user_id', userId)
     .eq('prediction_date', today)
     .eq('call_type', 'cycle_insight')
-    .order('created_at', { ascending: false })
+    .order('generated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
