@@ -84,12 +84,18 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleOpen = () => {
-    setPeriodStart(activeCycle?.period_start ?? todayStr());
-    setPeriodEnd(activeCycle?.period_end ?? "");
-    const parsed = parseNotes(activeCycle?.notes ?? null);
+    // Only treat this as "editing the current period" if the latest cycle hasn't
+    // been closed out yet. Once it has a period_end, any new log is a new period —
+    // default to today instead of dragging forward the old (now stale) dates.
+    const editingOngoingCycle = !!activeCycle && !activeCycle.period_end;
+
+    setPeriodStart(editingOngoingCycle ? activeCycle!.period_start : todayStr());
+    setPeriodEnd(editingOngoingCycle ? activeCycle!.period_end ?? "" : "");
+
+    const parsed = editingOngoingCycle ? parseNotes(activeCycle!.notes) : {};
     // Seed day 1 flow from cycles.flow_intensity if notes don't have it yet
-    if (activeCycle?.flow_intensity && !parsed[1]?.flow) {
-      parsed[1] = { ...(parsed[1] ?? emptyDay()), flow: activeCycle.flow_intensity };
+    if (editingOngoingCycle && activeCycle!.flow_intensity && !parsed[1]?.flow) {
+      parsed[1] = { ...(parsed[1] ?? emptyDay()), flow: activeCycle!.flow_intensity };
     }
     setDayLog(parsed);
     setSelectedDay(1);
@@ -137,14 +143,19 @@ const LogPeriodFab = ({ activeCycle, onLogged }: LogPeriodFabProps) => {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      if (activeCycle) {
-        if (periodEnd && !activeCycle.period_end) {
-          await updateCycleEnd(supabase, activeCycle.id, periodEnd);
+      // A closed-out cycle (period_end already set) means this log is a NEW period,
+      // not an edit of the old one — otherwise every period after the first would
+      // just overwrite the original cycle row instead of creating its own.
+      const editingOngoingCycle = !!activeCycle && !activeCycle.period_end;
+
+      if (editingOngoingCycle) {
+        if (periodEnd && !activeCycle!.period_end) {
+          await updateCycleEnd(supabase, activeCycle!.id, periodEnd);
         }
         const updates: Record<string, string | null> = { notes: notesValue, period_start: periodStart };
         if (day1Flow) updates.flow_intensity = day1Flow;
         if (periodEnd) updates.period_end = periodEnd;
-        await supabase.from("cycles").update(updates).eq("id", activeCycle.id);
+        await supabase.from("cycles").update(updates).eq("id", activeCycle!.id);
       } else {
         await insertCycle(supabase, {
           user_id: user.id,
